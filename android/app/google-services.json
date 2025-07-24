@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1081726199722",
+    "project_id": "new-hms-3291d",
+    "storage_bucket": "new-hms-3291d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1081726199722:android:93f1596277f86ec8d0add3",
+        "android_client_info": {
+          "package_name": "com.example.newhms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvC4FFNAlhN0mUMp3knqv7KKwiK6ulCDM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
