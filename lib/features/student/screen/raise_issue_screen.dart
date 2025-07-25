@@ -1,10 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/app_bar.dart';
 import 'package:newhms/common/custom_text.dart';
-import 'package:newhms/common/spacing.dart';
-import 'package:newhms/features/auth/widgets/custom_button.dart';
-import 'package:newhms/theme/text_theme.dart';
+import 'package:newhms/theme/colors.dart';
 
 class RaiseIssueScreen extends StatefulWidget {
   const RaiseIssueScreen({super.key});
@@ -14,141 +12,98 @@ class RaiseIssueScreen extends StatefulWidget {
 }
 
 class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
-  static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final _issueTypes = ['Plumbing', 'Electrical', 'Cleaning', 'Other'];
+  String? selectedType;
+  final TextEditingController _descController = TextEditingController();
 
-  TextEditingController studentComment = TextEditingController();
-
-  String? selectedIssue;
-  List<String> issues = [
-    'Bathroom',
-    'Bedroom',
-    'Water',
-    'Furniture',
-    'Kitchen'
-  ];
+  String block = '';
+  String roomNumber = '';
+  bool isLoading = false;
 
   @override
-  void dispose() {
-    studentComment.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadUserRoomInfo();
+  }
+
+  Future<void> _loadUserRoomInfo() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final snapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+    if (snapshot.exists) {
+      final data = snapshot.data()!;
+      setState(() {
+        block = data['block'] ?? '';
+        roomNumber = data['roomNumber'] ?? '';
+      });
+    }
+  }
+
+  Future<void> _submitIssue() async {
+    if (selectedType == null || _descController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("All fields are required")));
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    await FirebaseFirestore.instance.collection('issues').add({
+      'studentId': uid,
+      'issueType': selectedType,
+      'description': _descController.text.trim(),
+      'block': block,
+      'roomNumber': roomNumber,
+      'status': 'Pending',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    setState(() => isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Issue submitted")));
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar(context, "Create Issue"),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 10.h),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                heightSpacer(15),
-                Text('Room Number', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                _buildStaticInput("Room 101"),
-
-                heightSpacer(15),
-                Text('Block Number', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                _buildStaticInput("Block A"),
-
-                heightSpacer(15),
-                Text('Your Email ID', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                _buildStaticInput("example@email.com"),
-
-                heightSpacer(15),
-                Text('Phone Number', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                _buildStaticInput("08012345678"),
-
-                heightSpacer(15),
-                Text('Issue you are facing?', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w),
-                  width: double.maxFinite,
-                  decoration: ShapeDecoration(
-                    shape: RoundedRectangleBorder(
-                      side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: DropdownButton<String>(
-                    underline: const SizedBox(),
-                    isExpanded: true,
-                    value: selectedIssue,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedIssue = newValue;
-                      });
-                    },
-                    items: issues.map((String issue) {
-                      return DropdownMenuItem<String>(
-                        value: issue,
-                        child: Text(issue),
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-                heightSpacer(15),
-                Text('Comment', style: AppTextTheme.kLabelStyle),
-                heightSpacer(15),
-                CustomTextField(
-                  controller: studentComment,
-                  validator: (value) {
-                    if (value!.isEmpty) {
-                      return 'Comment is required';
-                    }
-                    return null;
-                  },
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-
-                heightSpacer(40),
-                CustomButton(
-                  buttonText: "Submit",
-                  press: () {
-                    if (_formKey.currentState!.validate()) {
-                      // Placeholder: Replace with Firebase logic later
-                      print("Issue submitted");
-                    }
-                  },
-                ),
-                heightSpacer(20),
-              ],
+      appBar: AppBar(
+        title: const CustomText(text: 'Raise Issue', fontSize: 20, fontWeight: FontWeight.bold),
+        backgroundColor: primaryColor,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedType,
+              decoration: const InputDecoration(labelText: 'Select Issue Type'),
+              items: _issueTypes
+                  .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                  .toList(),
+              onChanged: (val) => setState(() => selectedType = val),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStaticInput(String value) {
-    return Container(
-      width: double.maxFinite,
-      padding: const EdgeInsets.all(12),
-      decoration: ShapeDecoration(
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(left: 10.0),
-        child: Text(
-          value,
-          style: TextStyle(
-            color: const Color(0xFF333333),
-            fontSize: 17.sp,
-          ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Describe the issue',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 30),
+            isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _submitIssue,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: const Text('Submit Issue'),
+                  ),
+          ],
         ),
       ),
     );

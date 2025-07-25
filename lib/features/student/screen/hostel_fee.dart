@@ -1,253 +1,109 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:newhms/common/app_bar.dart';
-import 'package:newhms/common/constants.dart';
+import 'package:newhms/common/custom_text.dart';
 import 'package:newhms/common/spacing.dart';
-// import 'package:hostel_management/api_services/api_utils.dart';
-// import 'package:hostel_management/common/app_bar.dart';
-// import 'package:hostel_management/common/constants.dart';
-// import 'package:hostel_management/common/spacing.dart';
+import 'package:newhms/features/auth/widgets/custom_button.dart';
+import 'package:newhms/theme/colors.dart';
 
-class HostelFee extends StatelessWidget {
- final String blockNumber;
-  final String roomNumber;
-  final String maintenanceCharge;
-  final String parkingCharge;
-  final String waterCharge;
-  final String roomCharge;
-  final String totalCharge;
-  const HostelFee({
-    super.key,
-    required this.blockNumber,
-    required this.roomNumber,
-    required this.maintenanceCharge,
-    required this.parkingCharge,
-    required this.waterCharge,
-    required this.roomCharge,
-    required this.totalCharge,
-  });
+class HostelFeeScreen extends StatefulWidget {
+  const HostelFeeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HostelFeeScreen> createState() => _HostelFeeScreenState();
+}
+
+class _HostelFeeScreenState extends State<HostelFeeScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _paymentMethodController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+
+  bool _isSubmitting = false;
+
+  Future<void> _submitFee() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final userData = userDoc.data();
+
+    if (userData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User data not found')),
+      );
+      return;
+    }
+
+    final feeData = {
+      'userId': uid,
+      'firstName': userData['firstName'],
+      'lastName': userData['lastName'],
+      'roomNumber': userData['roomNumber'],
+      'amount': _amountController.text.trim(),
+      'paymentMethod': _paymentMethodController.text.trim(),
+      'note': _noteController.text.trim(),
+      'status': 'Pending',
+      'submittedAt': FieldValue.serverTimestamp(),
+    };
+
+    await FirebaseFirestore.instance.collection('hostelFees').add(feeData);
+
+    setState(() => _isSubmitting = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hostel fee submitted')),
+    );
+
+    _amountController.clear();
+    _paymentMethodController.clear();
+    _noteController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar(
-        context,
-        'Hostel Fees',
+      backgroundColor: white,
+      appBar: AppBar(
+        title: const CustomText(
+          text: 'Pay Hostel Fee',
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+        backgroundColor: primaryColor,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: ListView(
             children: [
-              heightSpacer(20),
-              SvgPicture.asset(
-                AppConstants.hostel,
-                height: 200.h,
+              verticalSpacing(16),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Amount'),
+                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
               ),
-              heightSpacer(40),
-              Container(
-                width: double.maxFinite,
-                decoration: ShapeDecoration(
-                  color: const Color(0x4C2E8B57),
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(
-                      width: 4,
-                      strokeAlign: BorderSide.strokeAlignOutside,
-                      color: Color(0xFF2E8B57),
-                    ),
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  shadows: const [
-                    BoxShadow(
-                      color: Color(0x332E8B57),
-                      blurRadius: 8,
-                      offset: Offset(1, 4),
-                      spreadRadius: 0,
-                    )
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      heightSpacer(20),
-                      Text(
-                        'Hostel details',
-                        style: TextStyle(
-                          color: const Color(0xFF333333),
-                          fontSize: 20.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Block no.',
-                                style: TextStyle(
-                                  color: const Color(0xFF464646),
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                '- $blockNumber',
-                                style: const TextStyle(
-                                  color: Color(0xFF464646),
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                'Room no.',
-                                style: TextStyle(
-                                  color: const Color(0xFF464646),
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                '- $roomNumber',
-                                style: const TextStyle(
-                                  color: Color(0xFF464646),
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      heightSpacer(20),
-                      const Text(
-                        'Payment details ',
-                        style: TextStyle(
-                          color: Color(0xFF333333),
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Maintenance charge - ',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '\$ $maintenanceCharge',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Parking charge - ',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '\$ $parkingCharge',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Room water charge - ',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '\$ $waterCharge',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Room charge - ',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '\$ $roomCharge',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      heightSpacer(20),
-                      const Divider(
-                        color: Colors.black,
-                      ),
-                      heightSpacer(20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total Amount - ',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '\$ $totalCharge',
-                            style: TextStyle(
-                              color: const Color(0xFF464646),
-                              fontSize: 16.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                      heightSpacer(30),
-                    ],
-                  ),
-                ),
+              verticalSpacing(16),
+              TextFormField(
+                controller: _paymentMethodController,
+                decoration: const InputDecoration(labelText: 'Payment Method (e.g. Bank Transfer)'),
+                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+              ),
+              verticalSpacing(16),
+              TextFormField(
+                controller: _noteController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Note (optional)'),
+              ),
+              verticalSpacing(24),
+              CustomButton(
+                isLoading: _isSubmitting,
+                onPressed: _submitFee,
+                buttonText: 'Submit Fee',
               ),
             ],
           ),

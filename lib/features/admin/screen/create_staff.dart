@@ -1,179 +1,138 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/app_bar.dart';
 import 'package:newhms/common/custom_text.dart';
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
-import 'package:newhms/features/home/home_screen.dart';
+import 'package:newhms/services/auth_service.dart';
 import 'package:newhms/services/user_services.dart';
-import 'package:newhms/theme/colors.dart';
-import 'package:newhms/theme/text_theme.dart';
 
-class CreateStaff extends StatefulWidget {
-  const CreateStaff({super.key});
+class CreateStaffScreen extends StatefulWidget {
+  const CreateStaffScreen({Key? key}) : super(key: key);
 
   @override
-  State<CreateStaff> createState() => _CreateStaffState();
+  State<CreateStaffScreen> createState() => _CreateStaffScreenState();
 }
 
-class _CreateStaffState extends State<CreateStaff> {
-  static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+class _CreateStaffScreenState extends State<CreateStaffScreen> {
+  final _formKey = GlobalKey<FormState>();
 
-  TextEditingController userName = TextEditingController();
-  TextEditingController email = TextEditingController();
-  TextEditingController password = TextEditingController();
-  TextEditingController firstName = TextEditingController();
-  TextEditingController lastName = TextEditingController();
-  TextEditingController phoneNumber = TextEditingController();
-  TextEditingController jobRole = TextEditingController();
+  // Text controllers
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController jobRoleController = TextEditingController();
+  final TextEditingController roomNumberController = TextEditingController();
+  final TextEditingController blockController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool isLoading = false;
+
+  Future<void> createStaff() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      final authResult = await AuthService.registerWithEmail(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final uid = authResult.user!.uid;
+
+      await UserService.saveStaffData(
+        uid: uid,
+        firstName: firstNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+        email: emailController.text.trim(),
+        phoneNumber: phoneController.text.trim(),
+        jobRole: jobRoleController.text.trim(),
+        roomNumber: roomNumberController.text.trim(),
+        block: blockController.text.trim(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Staff created successfully")),
+      );
+
+      Navigator.pop(context); // Return to previous screen
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Auth Error: ${e.message}")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   void dispose() {
-    userName.dispose();
-    email.dispose();
-    firstName.dispose();
-    lastName.dispose();
-    jobRole.dispose();
-    phoneNumber.dispose();
-    password.dispose();
+    firstNameController.dispose();
+    lastNameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    jobRoleController.dispose();
+    roomNumberController.dispose();
+    blockController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: buildAppBar(context, "Create Staff"),
-      backgroundColor: AppColors.kBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 10.h),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Username', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Username is required';
-                    return null;
-                  },
-                  controller: userName,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('First Name', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'First Name is required';
-                    return null;
-                  },
-                  controller: firstName,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('Last Name', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Last Name is required';
-                    return null;
-                  },
-                  controller: lastName,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('Job Role', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Job Role is required';
-                    return null;
-                  },
-                  controller: jobRole,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('Email', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  controller: email,
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Email is required';
-                    if (!emailRegex.hasMatch(value))
-                      return 'Invalid email address';
-                    return null;
-                  },
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('Password', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Password is required';
-                    return null;
-                  },
-                  controller: password,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(15),
-                Text('Phone Number', style: AppTextTheme.kLabelStyle),
-                CustomTextField(
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Phone Number is required';
-                    return null;
-                  },
-                  controller: phoneNumber,
-                  enabledBorder: _buildBorder(),
-                ),
-                heightSpacer(40),
-                CustomButton(
-                    buttonText: "Create Staff",
-                    press: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final user = await UserService().registerStaff(
-                          email: email.text.trim(),
-                          password: password.text,
-                          userName: userName.text.trim(),
-                          firstName: firstName.text.trim(),
-                          lastName: lastName.text.trim(),
-                          phoneNumber: phoneNumber.text.trim(),
-                          jobRole: jobRole.text.trim(),
-                        );
-
-                        if (user != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Staff registered successfully!')),
-                          );
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const HomeScreen()),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Failed to register staff')),
-                          );
-                        }
-                      }
-                    }),
-                heightSpacer(20),
-              ],
-            ),
+      appBar: AppBar(title: const Text("Create Staff")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              Spacing.height(10),
+              buildTextField("First Name", firstNameController),
+              buildTextField("Last Name", lastNameController),
+              buildTextField("Email", emailController,
+                  inputType: TextInputType.emailAddress),
+              buildTextField("Phone Number", phoneController,
+                  inputType: TextInputType.phone),
+              buildTextField("Job Role", jobRoleController),
+              buildTextField("Room Number", roomNumberController),
+              buildTextField("Block", blockController),
+              buildTextField("Password", passwordController, isPassword: true),
+              const SizedBox(height: 20),
+              CustomButton(
+                press: _onSubmit,
+                isLoading: isLoading,
+                text: 'Create Staff',
+              )
+            ],
           ),
         ),
       ),
     );
   }
 
-  OutlineInputBorder _buildBorder() {
-    return OutlineInputBorder(
-      borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
-      borderRadius: BorderRadius.circular(14),
+  Widget buildTextField(String label, TextEditingController controller,
+      {TextInputType inputType = TextInputType.text, bool isPassword = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isPassword,
+        keyboardType: inputType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        validator: (value) =>
+            value == null || value.trim().isEmpty ? "Required field" : null,
+      ),
     );
   }
-
-  final emailRegex =
-      RegExp(r'^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)*(\.[a-z]{2,})$');
 }

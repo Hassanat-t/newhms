@@ -1,236 +1,111 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:newhms/common/constants.dart';
 import 'package:newhms/common/custom_text.dart';
-import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/screens/login_screen.dart';
-import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/theme/colors.dart';
-import 'package:newhms/theme/text_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final String roomNumber;
-  final String blockNumber;
-  final String username;
-  final String emailId;
-  final String phoneNumber;
-  final String firstName;
-  final String lastName;
-
-  const ProfileScreen({
-    super.key,
-    required this.roomNumber,
-    required this.blockNumber,
-    required this.username,
-    required this.emailId,
-    required this.phoneNumber,
-    required this.firstName,
-    required this.lastName,
-  });
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  TextEditingController roomNumber = TextEditingController();
-  TextEditingController block = TextEditingController();
-  TextEditingController username = TextEditingController();
-  TextEditingController emailId = TextEditingController();
-  TextEditingController phoneNumber = TextEditingController();
-  TextEditingController firstName = TextEditingController();
-  TextEditingController lastName = TextEditingController();
+  User? user = FirebaseAuth.instance.currentUser;
+  Map<String, dynamic>? userData;
+  bool isLoading = true;
 
   @override
-  void dispose() {
-    super.dispose();
-    roomNumber.dispose();
-    phoneNumber.dispose();
-    block.dispose();
-    emailId.dispose();
-    username.dispose();
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
+
+      if (snapshot.exists) {
+        setState(() {
+          userData = snapshot.data();
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: white,
       appBar: AppBar(
-        backgroundColor: AppColors.kGreenColor,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            CupertinoIcons.back,
-            color: Colors.white,
-          ),
-        ),
-        title: Text(
-          "Profile",
-          style: AppTextTheme.kLabelStyle.copyWith(
-            fontSize: 24.sp,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 20.0),
-            child: InkWell(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => const LoginScreen(),
-                  ),
-                );
-              },
-              child: const Icon(
-                Icons.logout,
-                color: Colors.white,
-              ),
-            ),
-          )
-        ],
+        title: const CustomText(text: 'Profile', fontSize: 20, fontWeight: FontWeight.bold),
+        backgroundColor: primaryColor,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 15.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SvgPicture.asset(
-                AppConstants.profile,
-                height: 180.h,
-                width: 180.w,
-              ),
-              heightSpacer(10),
-              Text(
-                '${widget.firstName} ${widget.lastName}',
-                style: const TextStyle(
-                  color: Color(0xFF333333),
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : userData == null
+              ? const Center(child: Text('User data not found'))
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage: userData!['photoUrl'] != null
+                            ? NetworkImage(userData!['photoUrl'])
+                            : const AssetImage('assets/images/profile_placeholder.png')
+                                as ImageProvider,
+                      ),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: const Icon(Icons.person),
+                        title: Text('${userData!['firstName']} ${userData!['lastName']}'),
+                        subtitle: const Text('Full Name'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.email),
+                        title: Text(userData!['email'] ?? ''),
+                        subtitle: const Text('Email'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.phone),
+                        title: Text(userData!['phoneNumber'] ?? 'N/A'),
+                        subtitle: const Text('Phone Number'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.person_pin),
+                        title: Text(userData!['role'] ?? 'N/A'),
+                        subtitle: const Text('Role'),
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: _logout,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Logout'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                      )
+                    ],
+                  ),
                 ),
-              ),
-              heightSpacer(30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: ShapeDecoration(
-                        shape: RoundedRectangleBorder(
-                          side:
-                              const BorderSide(width: 1, color: Color(0xFF2E8B57)),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        'Room No - ${widget.roomNumber}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: const Color(0xFF333333),
-                          fontSize: 17.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-                  widthSpacer(30),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: ShapeDecoration(
-                        shape: RoundedRectangleBorder(
-                          side:
-                              const BorderSide(width: 1, color: Color(0xFF2E8B57)),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        'Block No - ${widget.blockNumber}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: const Color(0xFF333333),
-                          fontSize: 17.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              heightSpacer(20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: ShapeDecoration(
-                        shape: RoundedRectangleBorder(
-                          side: const BorderSide(
-                              width: 1, color: Color(0xFF2E8B57)),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        widget.emailId,
-                        style: TextStyle(
-                          color: AppColors.kSecondaryColor,
-                          fontSize: 17.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              heightSpacer(20),
-              CustomTextField(
-                controller: username,
-                inputHint: widget.username,
-                prefixIcon: const Icon(Icons.person_2_outlined),
-              ),
-              heightSpacer(20),
-              CustomTextField(
-                controller: phoneNumber,
-                inputHint: widget.phoneNumber,
-                prefixIcon: const Icon(Icons.phone_outlined),
-              ),
-              heightSpacer(20),
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      controller: firstName,
-                      inputHint: widget.firstName,
-                    ),
-                  ),
-                  widthSpacer(20),
-                  Expanded(
-                    child: CustomTextField(
-                      controller: lastName,
-                      inputHint: widget.lastName,
-                    ),
-                  ),
-                ],
-              ),
-              heightSpacer(40),
-              CustomButton(
-                press: () {
-                  // You can add Firebase update logic here later
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Save clicked')),
-                  );
-                },
-                buttonText: 'Save',
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

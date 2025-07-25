@@ -1,153 +1,89 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/app_bar.dart';
-import 'package:newhms/common/constants.dart';
-import 'package:newhms/common/spacing.dart';
-import 'package:newhms/services/user_services.dart';
+import 'package:newhms/common/custom_text.dart';
+import 'package:newhms/theme/colors.dart';
 
-class StaffInfoScreen extends StatelessWidget {
-  const StaffInfoScreen({super.key});
+class StaffDisplayScreen extends StatelessWidget {
+  const StaffDisplayScreen({super.key});
+
+  Future<void> deleteStaff(String docId) async {
+    await FirebaseFirestore.instance.collection('staff').doc(docId).delete();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar(context, 'All Staff'),
-      body: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('staff').snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      backgroundColor: white,
+      appBar: AppBar(
+        title: const CustomText(
+          text: 'All Staff',
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+        ),
+        backgroundColor: primaryColor,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('staff').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No staff available.'));
+          }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return const Center(child: Text('No staff found.'));
-            }
+          final staffList = snapshot.data!.docs;
 
-            final staffDocs = snapshot.data!.docs;
-
-            return GridView.builder(
-              itemCount: staffDocs.length,
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: GridView.builder(
+              itemCount: staffList.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 1,
-                childAspectRatio: 2 / 1.2,
-                crossAxisSpacing: 16.0,
-                mainAxisSpacing: 16.0,
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 3 / 2,
               ),
               itemBuilder: (context, index) {
-                final data = staffDocs[index].data() as Map<String, dynamic>;
-                final docId = staffDocs[index].id;
+                final staff = staffList[index];
+                final staffData = staff.data() as Map<String, dynamic>;
+                final staffId = staff.id;
 
                 return Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: const ShapeDecoration(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(width: 2, color: Color(0xFF007B3B)),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
-                        bottomLeft: Radius.circular(30),
-                      ),
-                    ),
-                    shadows: [
-                      BoxShadow(
-                        color: Color(0x4C007B3B),
-                        blurRadius: 8,
-                        offset: Offset(1, 4),
-                        spreadRadius: 0,
-                      )
-                    ],
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primaryColor),
                   ),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Column(
-                              children: [
-                                Image.asset(
-                                  AppConstants.person,
-                                  width: 90.w,
-                                  height: 90.h,
-                                ),
-                                heightSpacer(20),
-                                Text(
-                                  data['jobRole'] ?? 'No role',
-                                  style: const TextStyle(
-                                    color: Color(0xFF333333),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                )
-                              ],
-                            ),
-                            widthSpacer(10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  heightSpacer(10.0),
-                                  Text(
-                                    'Name: ${data['firstName']} ${data['lastName']}',
-                                    style: TextStyle(
-                                      color: const Color(0xFF333333),
-                                      fontSize: 14.sp,
-                                    ),
-                                  ),
-                                  heightSpacer(8.0),
-                                  Text(
-                                    'Email: ${data['email']}',
-                                    style: TextStyle(
-                                      color: const Color(0xFF333333),
-                                      fontSize: 14.sp,
-                                    ),
-                                  ),
-                                  heightSpacer(8.0),
-                                  Text('Contact: ${data['phoneNumber']}'),
-                                  heightSpacer(8.0),
-                                  Text('First Name: ${data['firstName']}'),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                      CustomText(
+                        text: "${staffData['firstName']} ${staffData['lastName']}",
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
-                      InkWell(
-                        onTap: () async {
-                          await UserService().deleteStaff(docId);
+                      CustomText(
+                        text: staffData['jobRole'] ?? 'No role',
+                        fontSize: 14,
+                      ),
+                      IconButton(
+                        onPressed: () async {
+                          await deleteStaff(staffId);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Staff deleted')),
+                          );
                         },
-                        child: Container(
-                          width: double.maxFinite,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          decoration: ShapeDecoration(
-                            color: const Color(0xFFEC6977),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'Delete',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                      ),
                     ],
                   ),
                 );
               },
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

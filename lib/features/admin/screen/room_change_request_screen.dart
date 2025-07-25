@@ -61,11 +61,11 @@ class RoomCard extends StatelessWidget {
         'status': status,
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Request $status')),
+        SnackBar(content: Text('Request marked as $status')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error updating status: $e')),
       );
     }
   }
@@ -73,48 +73,49 @@ class RoomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.maxFinite,
-      decoration: const ShapeDecoration(
-        shape: RoundedRectangleBorder(),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.grey[100],
+        boxShadow: [BoxShadow(color: Colors.grey.shade300, blurRadius: 6)],
       ),
       child: Column(
         children: [
-          heightSpacer(20),
           Container(
-            decoration: ShapeDecoration(
-              gradient: LinearGradient(
-                begin: const Alignment(0.00, -1.00),
-                end: const Alignment(0, 1),
-                colors: [
-                  const Color(0xFF2E8B57).withOpacity(0.5),
-                  const Color(0x002E8B57),
-                ],
-              ),
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
-              ),
-            ),
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.2),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('User ID: ${data['userId'] ?? 'Unknown'}'),
-                heightSpacer(8),
-                Text('Requested Room: ${data['newRoom']}'),
-                heightSpacer(8),
-                Text('Requested Block: ${data['newBlock']}'),
-                heightSpacer(8),
-                Text('Reason: ${data['reason']}'),
-                heightSpacer(8),
-                Text('Status: ${data['status']}'),
+                Text('User ID: ${data['userId'] ?? 'N/A'}'),
+                heightSpacer(6),
+                Text('Current Block: ${data['currentBlock'] ?? 'N/A'}'),
+                heightSpacer(6),
+                Text('Current Room: ${data['currentRoom'] ?? 'N/A'}'),
+                heightSpacer(6),
+                Text('Requested Block: ${data['requestedBlock'] ?? 'N/A'}'),
+                heightSpacer(6),
+                Text('Requested Room: ${data['requestedRoom'] ?? 'N/A'}'),
+                heightSpacer(6),
+                Text('Reason: ${data['reason'] ?? 'No reason provided'}'),
+                heightSpacer(6),
+                Text('Status: ${data['status'] ?? 'Pending'}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: data['status'] == 'APPROVED'
+                          ? Colors.green
+                          : data['status'] == 'REJECTED'
+                              ? Colors.red
+                              : Colors.orange,
+                    )),
               ],
             ),
           ),
           Container(
-            width: double.maxFinite,
             height: 50.h,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -124,11 +125,9 @@ class RoomCard extends StatelessWidget {
                     onTap: () => updateStatus(context, 'REJECTED'),
                     child: Container(
                       height: double.infinity,
-                      padding: const EdgeInsets.all(4),
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFFED6A77),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: Text(
@@ -136,24 +135,22 @@ class RoomCard extends StatelessWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                widthSpacer(32),
+                widthSpacer(16),
                 Expanded(
                   child: InkWell(
                     onTap: () => updateStatus(context, 'APPROVED'),
                     child: Container(
                       height: double.infinity,
-                      padding: const EdgeInsets.all(4),
-                      decoration: ShapeDecoration(
-                        color: const Color(0xFF2ECC71),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
                         child: Text(
@@ -161,7 +158,7 @@ class RoomCard extends StatelessWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
