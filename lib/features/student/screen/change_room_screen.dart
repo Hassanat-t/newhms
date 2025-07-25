@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:newhms/common/app_bar.dart';
@@ -13,168 +15,121 @@ class ChangeRoomScreen extends StatefulWidget {
 }
 
 class _ChangeRoomScreenState extends State<ChangeRoomScreen> {
+  final TextEditingController reason = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  String? currentBlock;
+  String? currentRoom;
   String? selectedBlock;
   String? selectedRoom;
-  TextEditingController reason = TextEditingController();
+  final List<String> blockOptions = ['A', 'B'];
+  final List<String> roomOptionsA = ['101', '102', '103'];
+  final List<String> roomOptionsB = ['201', '202', '203'];
 
-  List<String> blockOptions = ['A', 'B'];
-  List<String> roomOptionsA = ['101', '102', '103'];
-  List<String> roomOptionsB = ['201', '202', '203'];
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserData();
+  }
+
+  Future<void> _loadCurrentUserData() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        setState(() {
+          currentBlock = doc['block'];
+          currentRoom = doc['roomNumber'];
+        });
+      }
+    }
+  }
+
+  Future<void> _submitRoomChangeRequest() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || selectedBlock == null || selectedRoom == null || reason.text.isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('room_requests').add({
+        'userId': uid,
+        'currentBlock': currentBlock,
+        'currentRoom': currentRoom,
+        'requestedBlock': selectedBlock,
+        'requestedRoom': selectedRoom,
+        'reason': reason.text,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'Pending',
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Room change request submitted")),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error submitting request: $e")),
+      );
+    }
+  }
 
   @override
   void dispose() {
-    super.dispose();
     reason.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppBar(context, 'Change Room'),
-      body: Column(
-        children: [
-          Container(
-            width: double.maxFinite,
-            decoration: ShapeDecoration(
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 15.w),
+      body: currentBlock == null || currentRoom == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(16.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  heightSpacer(20),
                   Text(
                     'Current block and Room no.',
                     style: TextStyle(
-                      color: const Color(0xFF464646),
                       fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                   heightSpacer(10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(
-                                  width: 1, color: Color(0xFF2E8B57)),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Text(
-                            'Room No - ?',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: const Color(0xFF333333),
-                              fontSize: 17.sp,
-                            ),
-                          ),
-                        ),
-                      ),
-                      widthSpacer(30),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(
-                                  width: 1, color: Color(0xFF2E8B57)),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Text(
-                            'Block No - ?',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: const Color(0xFF333333),
-                              fontSize: 17.sp,
-                            ),
-                          ),
-                        ),
-                      ),
+                      _infoCard("Room No - $currentRoom"),
+                      widthSpacer(20),
+                      _infoCard("Block - $currentBlock"),
                     ],
                   ),
                   heightSpacer(20),
                   Text(
                     'Shift to block and Room no.',
                     style: TextStyle(
-                      color: const Color(0xFF464646),
                       fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                   heightSpacer(10),
                   Row(
                     children: [
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(
-                                  width: 1, color: Color(0xFF2E8B57)),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: DropdownButton<String>(
-                            underline: const SizedBox(),
-                            isExpanded: true,
-                            value: selectedBlock,
-                            hint: const Text("Select Block"),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedBlock = newValue;
-                                selectedRoom = null;
-                              });
-                            },
-                            items: blockOptions.map((String block) {
-                              return DropdownMenuItem<String>(
-                                value: block,
-                                child: Text(block),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
+                      Expanded(child: _buildDropdown(blockOptions, selectedBlock, (val) {
+                        setState(() {
+                          selectedBlock = val;
+                          selectedRoom = null;
+                        });
+                      })),
                       widthSpacer(20),
                       Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(
-                                  width: 1, color: Color(0xFF2E8B57)),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: DropdownButton<String>(
-                            underline: const SizedBox(),
-                            isExpanded: true,
-                            value: selectedRoom,
-                            hint: const Text("Select Room"),
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                selectedRoom = newValue;
-                              });
-                            },
-                            items: (selectedBlock == 'A'
-                                    ? roomOptionsA
-                                    : roomOptionsB)
-                                .map((String room) {
-                              return DropdownMenuItem<String>(
-                                value: room,
-                                child: Text(room),
-                              );
-                            }).toList(),
-                          ),
+                        child: _buildDropdown(
+                          selectedBlock == 'A' ? roomOptionsA : roomOptionsB,
+                          selectedRoom,
+                          (val) => setState(() => selectedRoom = val),
                         ),
                       ),
                     ],
@@ -183,33 +138,58 @@ class _ChangeRoomScreenState extends State<ChangeRoomScreen> {
                   Text(
                     'Reason for change',
                     style: TextStyle(
-                      color: const Color(0xFF464646),
                       fontSize: 16.sp,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                   heightSpacer(10),
                   CustomTextField(
                     controller: reason,
                     inputHint: 'Write your reason',
+                    maxLines: 4,
                   ),
                   heightSpacer(40),
                   CustomButton(
-                    press: () {
-                      // Placeholder for future Firebase logic
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Submit pressed - no logic yet"),
-                        ),
-                      );
-                    },
                     buttonText: 'Submit',
+                    press: _submitRoomChangeRequest,
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+    );
+  }
+
+  Widget _infoCard(String text) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFF2E8B57)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16.sp, color: Colors.black87),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(List<String> items, String? value, ValueChanged<String?> onChanged) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFF2E8B57)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: DropdownButton<String>(
+        underline: const SizedBox(),
+        isExpanded: true,
+        value: value,
+        onChanged: onChanged,
+        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
       ),
     );
   }

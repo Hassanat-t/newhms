@@ -4,6 +4,8 @@ import 'package:newhms/common/app_bar.dart';
 import 'package:newhms/common/custom_text.dart';
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
+import 'package:newhms/features/home/home_screen.dart';
+import 'package:newhms/services/user_services.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 
@@ -96,7 +98,8 @@ class _CreateStaffState extends State<CreateStaff> {
                   controller: email,
                   validator: (value) {
                     if (value!.isEmpty) return 'Email is required';
-                    if (!emailRegex.hasMatch(value)) return 'Invalid email address';
+                    if (!emailRegex.hasMatch(value))
+                      return 'Invalid email address';
                     return null;
                   },
                   enabledBorder: _buildBorder(),
@@ -123,21 +126,38 @@ class _CreateStaffState extends State<CreateStaff> {
                 ),
                 heightSpacer(40),
                 CustomButton(
-                  buttonText: "Create Staff",
-                  press: () async {
-                    if (_formKey.currentState!.validate()) {
-                      print('Staff Created:');
-                      print('Username: ${userName.text}');
-                      print('First Name: ${firstName.text}');
-                      print('Last Name: ${lastName.text}');
-                      print('Job Role: ${jobRole.text}');
-                      print('Email: ${email.text}');
-                      print('Password: ${password.text}');
-                      print('Phone: ${phoneNumber.text}');
-                      // You can save this to local storage or Firebase if needed
-                    }
-                  },
-                ),
+                    buttonText: "Create Staff",
+                    press: () async {
+                      if (_formKey.currentState!.validate()) {
+                        final user = await UserService().registerStaff(
+                          email: email.text.trim(),
+                          password: password.text,
+                          userName: userName.text.trim(),
+                          firstName: firstName.text.trim(),
+                          lastName: lastName.text.trim(),
+                          phoneNumber: phoneNumber.text.trim(),
+                          jobRole: jobRole.text.trim(),
+                        );
+
+                        if (user != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Staff registered successfully!')),
+                          );
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const HomeScreen()),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Failed to register staff')),
+                          );
+                        }
+                      }
+                    }),
                 heightSpacer(20),
               ],
             ),

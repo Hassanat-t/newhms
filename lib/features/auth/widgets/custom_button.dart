@@ -13,13 +13,18 @@ class CustomButton extends StatelessWidget {
   });
   final String? buttonText;
   final Color? buttonTextColor;
-  final Function() press;
+  final Function()? press;
+
   final double? size;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: press,
+      onTap: () async {
+        if (press != null) {
+          await Future.value(press!());
+        }
+      },
       child: Container(
         width: double.infinity,
         height: 50,

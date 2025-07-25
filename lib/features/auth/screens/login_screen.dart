@@ -138,10 +138,10 @@ class _LoginBodyState extends State<LoginBody> {
 
                       // Navigate to dashboard
                       Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    );
-
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const HomeScreen()),
+                      );
                     } on FirebaseAuthException catch (e) {
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
