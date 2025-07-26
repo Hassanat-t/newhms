@@ -1,13 +1,18 @@
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/features/admin/screen/create_staff.dart
+//import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/app_bar.dart';
+// Remove the old staff service import
+// import 'package:newhms/services/staff_services.dart';
+import 'package:newhms/common/app_bar.dart'; // Assuming this file exists
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
-import 'package:newhms/services/staff_services.dart';
+import 'package:newhms/providers/auth_providers.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
+import 'package:provider/provider.dart'; // Import provider
+//import 'package:newhms/providers/auth_provider.dart'; // Import your AuthProvider
 
 class CreateStaff extends StatefulWidget {
   const CreateStaff({super.key});
@@ -18,16 +23,18 @@ class CreateStaff extends StatefulWidget {
 
 class _CreateStaffState extends State<CreateStaff> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final StaffService _staffService = StaffService();
-
-  final TextEditingController _userNameController = TextEditingController();
+  // Remove the old staff service instance
+  // final StaffService _staffService = StaffService();
+  // Controllers
+  final TextEditingController _userNameController =
+      TextEditingController(); // Can be used as staffId
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _jobRoleController = TextEditingController();
-
+  final TextEditingController _jobRoleController =
+      TextEditingController(); // Can be used as position
   bool _isLoading = false;
 
   @override
@@ -48,30 +55,42 @@ class _CreateStaffState extends State<CreateStaff> {
     setState(() => _isLoading = true);
 
     try {
-      await _staffService.createStaff(
-        username: _userNameController.text.trim(),
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
+      // Use AuthProvider to register the staff member
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      final result = await authProvider.registerStaff(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        name:
+            '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+        staffId: _userNameController.text.trim(), // Map username to staffId
+        position: _jobRoleController.text.trim(), // Map jobRole to position
         phoneNumber: _phoneNumberController.text.trim(),
-        jobRole: _jobRoleController.text.trim(),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Staff created successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Clear form
-        _formKey.currentState?.reset();
-        _clearControllers();
-
-        // Optionally navigate back
-        // Navigator.pop(context);
+      if (result['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Staff created successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Clear form
+          _formKey.currentState?.reset();
+          _clearControllers();
+          // Optionally navigate back or show success message
+          // Navigator.pop(context); // Or stay on page
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Failed to create staff'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -101,18 +120,28 @@ class _CreateStaffState extends State<CreateStaff> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    
-    // Check if user has permission (assuming only admins can create staff)
-    bool hasPermission = user != null; // Add your role checking logic here
+    // Get the AuthProvider instance to check user role
+    final authProvider = Provider.of<AuthProvider>(context);
+
+    // Check if the current user is an Admin
+    // This replaces the simple FirebaseAuth check
+    bool hasPermission = authProvider.isAdmin;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: buildAppBar(context, "Create Staff"),
+      appBar:
+          buildAppBar(context, "Create Staff"), // Assuming buildAppBar exists
       backgroundColor: AppColors.kBackgroundColor,
       body: !hasPermission
           ? const Center(
-              child: Text("You don't have permission to view this page"),
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Access Denied: Only administrators can create staff members.",
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             )
           : SingleChildScrollView(
               child: Padding(
@@ -122,11 +151,13 @@ class _CreateStaffState extends State<CreateStaff> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Username', style: AppTextTheme.kLabelStyle),
+                      Text('Username (Staff ID)',
+                          style: AppTextTheme
+                              .kLabelStyle), // Clarify field purpose
                       CustomTextField(
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Username is required';
+                            return 'Username/Staff ID is required';
                           }
                           if (value.length < 3) {
                             return 'Username must be at least 3 characters';
@@ -135,9 +166,11 @@ class _CreateStaffState extends State<CreateStaff> {
                         },
                         controller: _userNameController,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        inputHint: "Enter unique staff ID",
                       ),
                       heightSpacer(15),
                       Text('First Name', style: AppTextTheme.kLabelStyle),
@@ -150,7 +183,8 @@ class _CreateStaffState extends State<CreateStaff> {
                         },
                         controller: _firstNameController,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
@@ -165,24 +199,29 @@ class _CreateStaffState extends State<CreateStaff> {
                         },
                         controller: _lastNameController,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       heightSpacer(15),
-                      Text('Job Role', style: AppTextTheme.kLabelStyle),
+                      Text('Job Role/Position',
+                          style: AppTextTheme
+                              .kLabelStyle), // Clarify field purpose
                       CustomTextField(
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Job Role is required';
+                            return 'Job Role/Position is required';
                           }
                           return null;
                         },
                         controller: _jobRoleController,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        inputHint: "e.g., Warden, Cleaner, Security",
                       ),
                       heightSpacer(15),
                       Text('Email', style: AppTextTheme.kLabelStyle),
@@ -193,16 +232,19 @@ class _CreateStaffState extends State<CreateStaff> {
                           if (value == null || value.isEmpty) {
                             return 'Email is required';
                           }
-                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          final emailRegex =
+                              RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                           if (!emailRegex.hasMatch(value)) {
                             return 'Invalid email address';
                           }
                           return null;
                         },
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        inputHint: "staff@example.com",
                       ),
                       heightSpacer(15),
                       Text('Password', style: AppTextTheme.kLabelStyle),
@@ -219,9 +261,11 @@ class _CreateStaffState extends State<CreateStaff> {
                         controller: _passwordController,
                         obscureText: true,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        inputHint: "Minimum 6 characters",
                       ),
                       heightSpacer(15),
                       Text('Phone Number', style: AppTextTheme.kLabelStyle),
@@ -232,17 +276,20 @@ class _CreateStaffState extends State<CreateStaff> {
                           }
                           // Simple phone validation
                           final phoneRegex = RegExp(r'^[0-9]{10,15}$');
-                          if (!phoneRegex.hasMatch(value.replaceAll(RegExp(r'[^0-9]'), ''))) {
-                            return 'Enter valid phone number';
+                          if (!phoneRegex.hasMatch(
+                              value.replaceAll(RegExp(r'[^0-9]'), ''))) {
+                            return 'Enter valid phone number (10-15 digits)';
                           }
                           return null;
                         },
                         controller: _phoneNumberController,
                         inputKeyBoardType: TextInputType.phone,
                         enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFD1D8FF)),
                           borderRadius: BorderRadius.circular(14),
                         ),
+                        inputHint: "e.g., 1234567890",
                       ),
                       heightSpacer(40),
                       CustomButton(

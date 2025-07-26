@@ -1,12 +1,17 @@
-
+// lib/features/auth/screens/register_screen.dart
+//import 'package:firebase_auth/firebase_auth.dart'; // Remove direct FirebaseAuth import if not used elsewhere
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
-import 'package:newhms/services/student_service.dart';
+import 'package:newhms/features/home/home_screen.dart';
+import 'package:newhms/providers/auth_providers.dart';
+// import 'package:newhms/services/student_service.dart'; // Remove direct service import
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
+import 'package:provider/provider.dart'; // Add provider import
+//import 'package:newhms/providers/auth_provider.dart'; // Add your auth provider import
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,26 +22,22 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
   final TextEditingController _userNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-
-  final StudentService _studentService = StudentService();
+  // final StudentService _studentService = StudentService(); // Remove this line
+  // We will use the AuthProvider instead
 
   String? _validationMessage;
   String? _selectedBlock;
   String? _selectedRoom;
-
   final List<String> _blockOptions = ['A', 'B'];
   final List<String> _roomOptionsA = ['101', '102', '103'];
   final List<String> _roomOptionsB = ['201', '202', '203'];
-
   bool _isLoading = false;
-
   final emailRegex =
       RegExp(r'^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)*(\.[a-z]{2,})$');
 
@@ -51,51 +52,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // Inside _RegisterScreenState in lib/features/auth/screens/register_screen.dart
+
   Future<void> _registerStudent() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (_selectedBlock == null || _selectedRoom == null) {
       setState(() {
         _validationMessage = 'Please select both block and room.';
       });
       return;
     }
-
     setState(() {
       _isLoading = true;
       _validationMessage = null;
     });
 
     try {
-      await _studentService.registerStudent(
-        username: _userNameController.text.trim(),
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
+      // Use the AuthProvider for registration
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final result = await authProvider.registerStudent(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        name:
+            '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
+        studentId: _userNameController.text.trim(),
+        roomNumber:
+            '${_selectedBlock!}${_selectedRoom!}', // Combine block and room
         phoneNumber: _phoneNumberController.text.trim(),
-        block: _selectedBlock!,
-        roomNumber: _selectedRoom!,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      if (result['success']) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registration successful'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Clear form
+          _formKey.currentState?.reset();
+          _clearControllers();
 
-        // Clear form
-        _formKey.currentState?.reset();
-        _clearControllers();
-        setState(() {
-          _selectedBlock = null;
-          _selectedRoom = null;
-        });
-
-        // Optionally navigate back to login
-        // Navigator.pop(context);
+          // Navigate to HomeScreen after successful registration
+          // Make sure to import HomeScreen at the top of the file:
+          // import 'package:newhms/features/home/home_screen.dart'; // Adjust path if needed
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false, // This removes all previous routes
+          );
+          // Alternative: If you want to keep the login screen in the stack for potential logout/back navigation:
+          // Navigator.pushReplacement(
+          //   context,
+          //   MaterialPageRoute(builder: (context) => const HomeScreen()),
+          // );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Registration failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -107,8 +127,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } finally {
+      // Ensure loading indicator is stopped in all cases
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false; // Ensure loading is stopped
+          // Reset dropdowns only on success, or always if preferred
+          // _selectedBlock = null;
+          // _selectedRoom = null;
+        });
       }
     }
   }

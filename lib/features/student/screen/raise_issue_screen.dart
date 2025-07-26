@@ -1,12 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/features/student/screen/raise_issue_screen.dart
+//import 'package:firebase_auth/firebase_auth.dart'as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/app_bar.dart';
+import 'package:newhms/common/app_bar.dart'; // Assuming this file exists
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
-import 'package:newhms/services/firebase_issue_service.dart';
+import 'package:newhms/providers/auth_providers.dart';
+// import 'package:newhms/services/firebase_issue_service.dart'; // We'll fetch data differently
 import 'package:newhms/theme/text_theme.dart';
+import 'package:provider/provider.dart'; // Import provider
+//import 'package:newhms/providers/auth_provider.dart'; // Import your AuthProvider
+import 'package:cloud_firestore/cloud_firestore.dart'; // To fetch data directly
 
 class RaiseIssueScreen extends StatefulWidget {
   const RaiseIssueScreen({super.key});
@@ -17,15 +22,15 @@ class RaiseIssueScreen extends StatefulWidget {
 
 class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
   static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final FirebaseIssueService _issueService = FirebaseIssueService();
-  
-  final TextEditingController _studentCommentController = TextEditingController();
-  
+  // Remove the old service instance as we'll fetch data directly or via updated service
+  // final FirebaseIssueService _issueService = FirebaseIssueService();
+  final TextEditingController _studentCommentController =
+      TextEditingController();
   String? _selectedIssue;
+  // Store student data fetched from Firestore/AuthProvider
   Map<String, dynamic>? _studentData;
   bool _isLoading = true;
   bool _isSubmitting = false;
-
   final List<String> _issues = [
     'Bathroom',
     'Bedroom',
@@ -40,16 +45,38 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchStudentDetails();
+    _fetchStudentDetails(); // Fetch details using the new method
   }
 
+  // Updated method to fetch student details using AuthProvider and Firestore
   Future<void> _fetchStudentDetails() async {
     try {
-      final studentData = await _issueService.getCurrentStudentDetails();
       setState(() {
-        _studentData = studentData;
-        _isLoading = false;
+        _isLoading = true; // Ensure loading state is set at the start
       });
+
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user; // Get user from AuthProvider
+
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Fetch student data directly from Firestore using the UID
+      final studentDoc = await FirebaseFirestore.instance
+          .collection('students')
+          .doc(user.uid)
+          .get();
+
+      if (studentDoc.exists) {
+        setState(() {
+          _studentData =
+              studentDoc.data() as Map<String, dynamic>; // Store the data
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Student data not found for UID: ${user.uid}');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -71,14 +98,17 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
     super.dispose();
   }
 
+  // Helper to get data from _studentData map
   String _getStudentData(String field) {
-    if (_studentData == null) return 'Loading...';
+    if (_isLoading)
+      return 'Loading...'; // Show loading while data is being fetched
+    if (_studentData == null) return 'Error loading data';
     return _studentData![field]?.toString() ?? 'N/A';
   }
 
+  // Updated method to submit the issue
   Future<void> _submitIssue() async {
     if (!_formKey.currentState!.validate()) return;
-    
     if (_selectedIssue == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -88,24 +118,37 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
       );
       return;
     }
-
     setState(() => _isSubmitting = true);
-
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user; // Get user from AuthProvider
+
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
-      await _issueService.submitIssue(
-        roomNumber: _getStudentData('roomNumber'),
-        blockNumber: _getStudentData('block'),
-        issueType: _selectedIssue!,
-        studentComment: _studentCommentController.text.trim(),
-        studentEmail: user.email ?? _getStudentData('email'),
-        studentPhone: _getStudentData('phoneNumber'),
-        studentId: user.uid,
-      );
+      // Prepare data for Firestore
+      final issueData = {
+        'studentUid': user.uid, // Use UID from AuthProvider
+        'studentName':
+            '${_getStudentData('firstName')} ${_getStudentData('lastName')}'
+                .trim(),
+        'studentRoom': _getStudentData('roomNumber'),
+        'studentBlock':
+            _getStudentData('block'), // Assuming 'block' field exists
+        'studentEmail': user.email ??
+            _getStudentData('email'), // Prefer Firebase Auth email
+        'studentPhone': _getStudentData('phoneNumber'),
+        'issueType': _selectedIssue,
+        'description': _studentCommentController.text.trim(),
+        'status': 'open', // Default status
+        'priority': 'medium', // Default priority, could be dynamic
+        'createdAt': FieldValue.serverTimestamp(),
+        // Add other fields as needed, like assignedTo, resolvedAt, etc.
+      };
+
+      // Submit issue to Firestore
+      await FirebaseFirestore.instance.collection('issues').add(issueData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,7 +157,6 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
             backgroundColor: Colors.green,
           ),
         );
-
         // Clear form
         setState(() {
           _selectedIssue = null;
@@ -125,7 +167,8 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to submit issue: ${e.toString().replaceAll('Exception:', '').trim()}'),
+            content: Text(
+                'Failed to submit issue: ${e.toString().replaceAll('Exception:', '').trim()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -139,9 +182,13 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get AuthProvider to potentially check role if needed (though this screen is likely student-only)
+    // final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
-      appBar: buildAppBar(context, "Create Issue"),
-      body: _isLoading
+      appBar:
+          buildAppBar(context, "Create Issue"), // Assuming buildAppBar exists
+      body: _isLoading // Show loading indicator while fetching data
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
@@ -159,14 +206,16 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: ShapeDecoration(
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            side: const BorderSide(
+                                width: 1, color: Color(0xFF2E8B57)),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 10.0),
                           child: Text(
-                            _getStudentData('roomNumber'),
+                            _getStudentData(
+                                'roomNumber'), // Fetched from Firestore
                             style: TextStyle(
                               color: const Color(0xFF333333),
                               fontSize: 17.sp,
@@ -182,14 +231,15 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: ShapeDecoration(
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            side: const BorderSide(
+                                width: 1, color: Color(0xFF2E8B57)),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 10.0),
                           child: Text(
-                            _getStudentData('block'),
+                            _getStudentData('block'), // Fetched from Firestore
                             style: TextStyle(
                               color: const Color(0xFF333333),
                               fontSize: 17.sp,
@@ -205,14 +255,20 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: ShapeDecoration(
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            side: const BorderSide(
+                                width: 1, color: Color(0xFF2E8B57)),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 10.0),
                           child: Text(
-                            _getStudentData('email') ?? FirebaseAuth.instance.currentUser?.email ?? 'N/A',
+                            // Prefer email from Firebase Auth user object
+                            Provider.of<AuthProvider>(context, listen: false)
+                                    .user
+                                    ?.email ??
+                                _getStudentData('email') ??
+                                'N/A',
                             style: TextStyle(
                               color: const Color(0xFF333333),
                               fontSize: 17.sp,
@@ -228,14 +284,16 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: ShapeDecoration(
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            side: const BorderSide(
+                                width: 1, color: Color(0xFF2E8B57)),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 10.0),
                           child: Text(
-                            _getStudentData('phoneNumber'),
+                            _getStudentData(
+                                'phoneNumber'), // Fetched from Firestore
                             style: TextStyle(
                               color: const Color(0xFF333333),
                               fontSize: 17.sp,
@@ -244,14 +302,16 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                         ),
                       ),
                       heightSpacer(15),
-                      Text('Issue you are facing?', style: AppTextTheme.kLabelStyle),
+                      Text('Issue you are facing?',
+                          style: AppTextTheme.kLabelStyle),
                       heightSpacer(15),
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 10.w),
                         width: double.maxFinite,
                         decoration: ShapeDecoration(
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            side: const BorderSide(
+                                width: 1, color: Color(0xFF2E8B57)),
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
@@ -288,7 +348,8 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                           return null;
                         },
                         enabledBorder: OutlineInputBorder(
-                            borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFD1D8FF)),
                             borderRadius: BorderRadius.circular(14)),
                         maxLines: 3,
                         inputHint: 'Describe your issue in detail',
@@ -297,7 +358,8 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                       CustomButton(
                         buttonText: "Submit",
                         press: _submitIssue,
-                        isLoading: _isSubmitting,
+                        isLoading:
+                            _isSubmitting, // Show loading on button during submission
                       ),
                       heightSpacer(20),
                     ],

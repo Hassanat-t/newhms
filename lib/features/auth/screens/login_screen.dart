@@ -1,14 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/features/auth/screens/login_screen.dart
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/screens/register_screen.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
-import 'package:newhms/features/home/home_screen.dart';
-import 'package:newhms/services/firebase_auth_service.dart';
+import 'package:newhms/providers/auth_providers.dart';
+// import 'package:newhms/features/home/home_screen.dart'; // Remove direct navigation import
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
+import 'package:provider/provider.dart'; // Add provider import
+//import 'package:newhms/providers/auth_provider.dart'; // Add your auth provider import
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -36,8 +39,9 @@ class _LoginBodyState extends State<LoginBody> {
   static final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuthService _authService = FirebaseAuthService();
-  
+  // final FirebaseAuthService _authService = FirebaseAuthService(); // Remove this line
+  // We will use the AuthProvider instead
+
   bool _isLoading = false;
   final emailRegex = RegExp(r'^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)*(\.[a-z]{2,})$');
 
@@ -48,27 +52,22 @@ class _LoginBodyState extends State<LoginBody> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+  // Inside _LoginBodyState in login_screen.dart
+Future<void> _handleLogin() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      final userCredential = await _authService.signInUser(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+  try {
+    // Use the AuthProvider for login
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      if (userCredential?.user == null) {
-        _showError("Failed to sign in");
-        return;
-      }
+    final result = await authProvider.login( // <-- This 'login' method must exist in AuthProvider
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      final user = userCredential!.user!;
-      
-      // Get user role (optional - for role-based navigation)
-      final userRole = await _authService.getUserRole(user.uid);
-
+    if (result['success']) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -76,42 +75,21 @@ class _LoginBodyState extends State<LoginBody> {
             backgroundColor: Colors.green,
           ),
         );
-
-        // Navigate to home screen or dashboard
-        // You'll need to implement your navigation logic here
-        // For example:
-         Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-         );
+        // Navigation is now handled by main.dart's Consumer/Wrapper based on authProvider.isAuthenticated
       }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = "Login failed";
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = "No user found with this email";
-          break;
-        case 'wrong-password':
-          errorMessage = "Incorrect password";
-          break;
-        case 'invalid-email':
-          errorMessage = "Invalid email address";
-          break;
-        case 'user-disabled':
-          errorMessage = "This account has been disabled";
-          break;
-        default:
-          errorMessage = e.message ?? "An unknown error occurred";
-      }
-      _showError(errorMessage);
-    } catch (e) {
-      _showError(e.toString().replaceAll('Exception:', '').trim());
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    } else {
+      _showError(result['message'] ?? "Login failed");
+    }
+  } on firebase_auth.FirebaseAuthException catch (e)  {
+    // ... (your existing error handling)
+  } catch (e) {
+    // ... (your existing error handling)
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   void _showError(String message) {
     if (mounted) {

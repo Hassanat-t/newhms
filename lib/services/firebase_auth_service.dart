@@ -1,6 +1,7 @@
 // lib/services/firebase_auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -24,7 +25,7 @@ class FirebaseAuthService {
     }
   }
 
-  // NEW: Sign in user with email and password (This was missing or named differently)
+  // Sign in user with email and password
   Future<UserCredential?> signInUser({
     required String email,
     required String password,
@@ -42,41 +43,73 @@ class FirebaseAuthService {
     }
   }
 
-
   // Check if email already exists
-  Future<bool> checkEmailExists(String email) async {
-    try {
-      final result = await _auth.fetchSignInMethodsForEmail(email);
-      return result.isNotEmpty;
-    } catch (e) {
+ Future<bool> checkEmailExists(String email) async {
+  try {
+    await _auth.signInWithEmailAndPassword(email: email, password: 'dummyPassword');
+    return true;
+  } on FirebaseAuthException catch (e) {
+    if (e.code == 'user-not-found') {
       return false;
+    } else {
+      return true;
     }
   }
+}
 
-  // NEW: Get user role from Firestore (This was missing or named differently)
+
+  // Get user role from Firestore
   Future<String?> getUserRole(String uid) async {
     try {
-      DocumentSnapshot userDoc = await _firestore.collection('staff').doc(uid).get(); // Or 'students' depending on your structure
-      if (userDoc.exists) {
-        Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
-        // Assuming the role is stored as a string like 'admin', 'staff', 'student'
-        // Or as an ID like 1, 2, 3. Adjust based on your data structure.
-        return data['roleId']?.toString() ?? '3'; // Default to student role '3' or 'student'
+      // Check if user is admin first (using default admin credentials)
+      User? currentUser = _auth.currentUser;
+      if (currentUser != null && 
+          currentUser.email == 'admin@hostel.com') {
+        return 'admin';
       }
-      // If not found in 'staff', check 'students' collection
+
+      // Check if user is staff
+      DocumentSnapshot staffDoc = await _firestore.collection('staff').doc(uid).get();
+      if (staffDoc.exists) {
+        return 'staff';
+      }
+
+      // Check if user is student
       DocumentSnapshot studentDoc = await _firestore.collection('students').doc(uid).get();
       if (studentDoc.exists) {
-        Map<String, dynamic> data = studentDoc.data() as Map<String, dynamic>;
-        return data['roleId']?.toString() ?? '2'; // Default to student role '2'
+        return 'student';
       }
-      return '3'; // Default role if not found
+
+      return 'student'; // Default to student if not found
     } catch (e) {
-      print('Error getting user role: $e');
-      return '3'; // Default role on error
+      debugPrint('Error getting user role: $e');
+      return 'student'; // Default to student on error
     }
   }
 
-  // Optional: Sign out user
+  // Get user data from Firestore
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    try {
+      // Check staff collection
+      DocumentSnapshot staffDoc = await _firestore.collection('staff').doc(uid).get();
+      if (staffDoc.exists) {
+        return staffDoc.data() as Map<String, dynamic>;
+      }
+
+      // Check students collection
+      DocumentSnapshot studentDoc = await _firestore.collection('students').doc(uid).get();
+      if (studentDoc.exists) {
+        return studentDoc.data() as Map<String, dynamic>;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error getting user data: $e');
+      return null;
+    }
+  }
+
+  // Sign out user
   Future<void> signOut() async {
     try {
       await _auth.signOut();

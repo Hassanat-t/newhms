@@ -20,7 +20,7 @@ class HostelFee extends StatefulWidget {
   final String? initialTotalCharge;
 
   const HostelFee({
-    Key? key,
+    super.key,
     // Allow initialization with data passed from HomeScreen
     this.initialBlockNumber,
     this.initialRoomNumber,
@@ -29,7 +29,7 @@ class HostelFee extends StatefulWidget {
     this.initialWaterCharge,
     this.initialRoomCharge,
     this.initialTotalCharge,
-  }) : super(key: key);
+  });
 
   @override
   State<HostelFee> createState() => _HostelFeeState();

@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -14,109 +14,16 @@ import 'package:newhms/features/student/screen/hostel_fee.dart';
 import 'package:newhms/features/student/screen/profile_screen.dart';
 import 'package:newhms/features/student/screen/raise_issue_screen.dart';
 import 'package:newhms/features/student/screen/room_availability.dart';
-//import 'package:newhms/features/student/screen/hostel_fee_screen.dart';
-
 import 'package:newhms/services/firebase_home_service.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 import 'package:newhms/widget/Categories_card.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:newhms/providers/auth_providers.dart';
+import 'package:provider/provider.dart'; // Add this import
+//import 'package:newhms/providers/auth_provider.dart'; // Add this import
 
-// Assuming you have this model or create a simplified version
-class StudentInfoModel {
-  final List<StudentResult> result;
-
-  StudentInfoModel({required this.result});
-
-  factory StudentInfoModel.fromJson(Map<String, dynamic> json) {
-    // Simplified parsing for test mode
-    return StudentInfoModel(
-      result: [
-        StudentResult.fromJson(json['result'][0] as Map<String, dynamic>)
-      ],
-    );
-  }
-}
-
-class StudentResult {
-  final StudentProfileData studentProfileData;
-  final RoomChargesModel roomChargesModel;
-
-  StudentResult({
-    required this.studentProfileData,
-    required this.roomChargesModel,
-  });
-
-  factory StudentResult.fromJson(Map<String, dynamic> json) {
-    return StudentResult(
-      studentProfileData: StudentProfileData.fromJson(
-          json['studentProfileData'] as Map<String, dynamic>),
-      roomChargesModel: RoomChargesModel.fromJson(
-          json['roomChargesModel'] as Map<String, dynamic>),
-    );
-  }
-}
-
-class StudentProfileData {
-  final String emailId;
-  final String phoneNumber;
-  final String roomNumber;
-  final String userName;
-  final String block;
-  final String firstName;
-  final String lastName;
-  final int roleId;
-
-  StudentProfileData({
-    required this.emailId,
-    required this.phoneNumber,
-    required this.roomNumber,
-    required this.userName,
-    required this.block,
-    required this.firstName,
-    required this.lastName,
-    required this.roleId,
-  });
-
-  factory StudentProfileData.fromJson(Map<String, dynamic> json) {
-    return StudentProfileData(
-      emailId: json['emailId'] ?? '',
-      phoneNumber: json['phoneNumber'] ?? '',
-      roomNumber: json['roomNumber'] ?? '',
-      userName: json['userName'] ?? '',
-      block: json['block'] ?? '',
-      firstName: json['firstName'] ?? '',
-      lastName: json['lastName'] ?? '',
-      roleId: json['roleId'] ?? 3, // Default to student role
-    );
-  }
-}
-
-class RoomChargesModel {
-  final double maintenanceCharges;
-  final double parkingCharges;
-  final double roomWaterCharges;
-  final double roomAmount;
-  final double totalAmount;
-
-  RoomChargesModel({
-    required this.maintenanceCharges,
-    required this.parkingCharges,
-    required this.roomWaterCharges,
-    required this.roomAmount,
-    required this.totalAmount,
-  });
-
-  factory RoomChargesModel.fromJson(Map<String, dynamic> json) {
-    return RoomChargesModel(
-      maintenanceCharges: (json['maintenanceCharges'] ?? 0).toDouble(),
-      parkingCharges: (json['parkingCharges'] ?? 0).toDouble(),
-      roomWaterCharges: (json['roomWaterCharges'] ?? 0).toDouble(),
-      roomAmount: (json['roomAmount'] ?? 0).toDouble(),
-      totalAmount: (json['totalAmount'] ?? 0).toDouble(),
-    );
-  }
-}
+// ... (Keep all your existing model classes: StudentInfoModel, StudentResult, etc.)
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -141,7 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchUserData() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = firebase_auth.FirebaseAuth.instance.currentUser;
+
       if (user != null) {
         _userEmail = user.email ?? '';
         final studentDoc =
@@ -173,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final data = await _firebaseService.getPieChartData();
       final roomChangeChart = data;
-
       setState(() {
         _chartData = [
           ChartData(
@@ -215,15 +122,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int _getRoleId() {
-    if (_studentDoc == null || !_studentDoc!.exists)
+    if (_studentDoc == null || !_studentDoc!.exists) {
       return 3; // Default to student
+    }
     final data = _studentDoc!.data() as Map<String, dynamic>;
     return data['roleId'] ?? 3;
   }
 
   @override
   Widget build(BuildContext context) {
-    final roleId = _getRoleId();
+    // Get the auth provider instance
+    final authProvider = Provider.of<AuthProvider>(context);
+    
+    //final roleId = _getRoleId();
     final firstName = _getStudentData('firstName');
     final lastName = _getStudentData('lastName');
     final roomNumber = _getStudentData('roomNumber');
@@ -266,6 +177,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: SvgPicture.asset(
                 AppConstants.profile,
               ),
+            ),
+          ),
+          // Add logout button
+          Padding(
+            padding: EdgeInsets.only(right: 15.w),
+            child: IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              onPressed: () {
+                authProvider.logout();
+              },
             ),
           ),
         ],
@@ -329,7 +250,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                       ),
-                                      heightSpacer(15),
+                                      heightSpacer(5),
+                                      // Display user role based on auth provider
+                                      Text(
+                                        authProvider.isAdmin
+                                            ? 'Administrator'
+                                            : (authProvider.isStaff
+                                                ? 'Staff'
+                                                : 'Student'),
+                                        style: TextStyle(
+                                          color: const Color(0xFF666666),
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      heightSpacer(10),
                                       Text(
                                         "Room No. : $roomNumber",
                                         textAlign: TextAlign.center,
@@ -348,31 +283,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                       )
                                     ],
                                   ),
-                                  InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        CupertinoPageRoute(
-                                          builder: (context) =>
-                                              const RaiseIssueScreen(),
-                                        ),
-                                      );
-                                    },
-                                    child: Column(
-                                      children: [
-                                        SvgPicture.asset(
-                                            AppConstants.createIssue),
-                                        Text(
-                                          'Create issues',
-                                          style: TextStyle(
-                                            color: const Color(0xFF153434),
-                                            fontSize: 16.sp,
-                                            fontWeight: FontWeight.w700,
+                                  // Show "Create issues" button for students only
+                                  if (authProvider.isStudent)
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          CupertinoPageRoute(
+                                            builder: (context) =>
+                                                const RaiseIssueScreen(),
                                           ),
-                                        ),
-                                      ],
+                                        );
+                                      },
+                                      child: Column(
+                                        children: [
+                                          SvgPicture.asset(
+                                              AppConstants.createIssue),
+                                          Text(
+                                            'Create issues',
+                                            style: TextStyle(
+                                              color: const Color(0xFF153434),
+                                              fontSize: 16.sp,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -426,31 +363,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                   );
                                 },
                               ),
-                              CategoryCard(
-                                category: 'Staff\nMembers',
-                                image: AppConstants.staffMember,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                      builder: (context) =>
-                                          const StaffInfoScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
+                              // Show Staff Members for staff and admin only
+                              if (authProvider.isStaff || authProvider.isAdmin)
+                                CategoryCard(
+                                  category: 'Staff\nMembers',
+                                  image: AppConstants.staffMember,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      CupertinoPageRoute(
+                                        builder: (context) =>
+                                            const StaffInfoScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
                             ],
                           ),
                           heightSpacer(20),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              CategoryCard(
-                                category: 'Create\nStaff',
-                                image: AppConstants.createStaff,
-                                onTap: () {
-                                  // Check permissions
-                                  if (roleId != 2 && roleId != 3) {
+                              // Show Create Staff only for admin
+                              if (authProvider.isAdmin)
+                                CategoryCard(
+                                  category: 'Create\nStaff',
+                                  image: AppConstants.createStaff,
+                                  onTap: () {
                                     Navigator.push(
                                       context,
                                       CupertinoPageRoute(
@@ -458,49 +397,37 @@ class _HomeScreenState extends State<HomeScreen> {
                                             const CreateStaff(),
                                       ),
                                     );
-                                  }
-                                },
-                              ),
-                              // Inside HomeScreen's build method, find the Hostel Fee CategoryCard's onTap function
-CategoryCard(
-  category: 'Hostel\nFee',
-  image: AppConstants.hostelFee, // Ensure this path is correct
-  onTap: () {
-    // --- Add Permission Check Here ---
-    // Example: Allow access only to students (roleId 2)
-    // Adjust condition based on your requirements.
-    if (roleId == 2) { // Allow access if student (roleId 2)
-      Navigator.push(
-        context,
-        CupertinoPageRoute(
-          builder: (context) => HostelFee(
-            // ---> CHANGE THESE PARAMETER NAMES <---
-            initialBlockNumber: blockNumber, // <-- Use initialBlockNumber
-            initialRoomNumber: roomNumber,   // <-- Use initialRoomNumber
-            initialMaintenanceCharge: _getStudentData('maintenanceCharge'), // <-- Use initialMaintenanceCharge
-            initialParkingCharge: _getStudentData('parkingCharge'),       // <-- Use initialParkingCharge
-            initialWaterCharge: _getStudentData('waterCharge'),           // <-- Use initialWaterCharge
-            initialRoomCharge: _getStudentData('roomCharge'),             // <-- Use initialRoomCharge
-            initialTotalCharge: _getStudentData('totalCharge'),           // <-- Use initialTotalCharge
-          ),
-        ),
-      );
-    } else {
-       ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(
-           content: Text("Only students can view Hostel Fees."),
-           backgroundColor: Colors.red,
-         ),
-       );
-    }
-  },
-),
-                              CategoryCard(
-                                category: 'Change\nRequests',
-                                image: AppConstants.roomChange,
-                                onTap: () {
-                                  // Check permissions
-                                  if (roleId != 2 && roleId != 3) {
+                                  },
+                                ),
+                              // Show Hostel Fee for students only
+                              if (authProvider.isStudent)
+                                CategoryCard(
+                                  category: 'Hostel\nFee',
+                                  image: AppConstants.hostelFee,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      CupertinoPageRoute(
+                                        builder: (context) => HostelFee(
+                                          // ---> CHANGE THESE PARAMETER NAMES <---
+                                          initialBlockNumber: blockNumber, // <-- Use initialBlockNumber
+                                          initialRoomNumber: roomNumber,   // <-- Use initialRoomNumber
+                                          initialMaintenanceCharge: _getStudentData('maintenanceCharge'), // <-- Use initialMaintenanceCharge
+                                          initialParkingCharge: _getStudentData('parkingCharge'),       // <-- Use initialParkingCharge
+                                          initialWaterCharge: _getStudentData('waterCharge'),           // <-- Use initialWaterCharge
+                                          initialRoomCharge: _getStudentData('roomCharge'),             // <-- Use initialRoomCharge
+                                          initialTotalCharge: _getStudentData('totalCharge'),           // <-- Use initialTotalCharge
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              // Show Change Requests for staff and admin
+                              if (authProvider.isStaff || authProvider.isAdmin)
+                                CategoryCard(
+                                  category: 'Change\nRequests',
+                                  image: AppConstants.roomChange,
+                                  onTap: () {
                                     Navigator.push(
                                       context,
                                       CupertinoPageRoute(
@@ -508,39 +435,36 @@ CategoryCard(
                                             const RoomChangeRequestScreen(),
                                       ),
                                     );
-                                  }
-                                },
-                              ),
+                                  },
+                                ),
                             ],
                           ),
                           heightSpacer(20),
                         ],
                       ),
                     ),
-                    _chartData == null
-                        ? const CircularProgressIndicator()
-                        : roleId == 2 || roleId == 3
-                            ? const SizedBox.shrink()
-                            : SfCircularChart(
-                                series: <CircularSeries>[
-                                  PieSeries<ChartData, String>(
-                                    dataSource: _chartData,
-                                    pointColorMapper: (ChartData data, _) =>
-                                        data.color,
-                                    xValueMapper: (ChartData data, _) =>
-                                        data.label,
-                                    yValueMapper: (ChartData data, _) =>
-                                        data.value,
-                                    dataLabelMapper: (ChartData data, _) =>
-                                        '${data.label}\n${data.value}',
-                                    dataLabelSettings: const DataLabelSettings(
-                                      isVisible: true,
-                                      labelPosition:
-                                          ChartDataLabelPosition.outside,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                    // Show chart only for staff and admin
+                    if ((authProvider.isStaff || authProvider.isAdmin) && _chartData != null)
+                      SfCircularChart(
+                        series: <CircularSeries>[
+                          PieSeries<ChartData, String>(
+                            dataSource: _chartData,
+                            pointColorMapper: (ChartData data, _) =>
+                                data.color,
+                            xValueMapper: (ChartData data, _) =>
+                                data.label,
+                            yValueMapper: (ChartData data, _) =>
+                                data.value,
+                            dataLabelMapper: (ChartData data, _) =>
+                                '${data.label}\n${data.value}',
+                            dataLabelSettings: const DataLabelSettings(
+                              isVisible: true,
+                              labelPosition:
+                                  ChartDataLabelPosition.outside,
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
