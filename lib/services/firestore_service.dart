@@ -1,41 +1,86 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<void> addDocument(String collectionPath, Map<String, dynamic> data, {String? docId}) async {
+  // Save student data to Firestore
+  Future<void> saveStudentData({
+    required String uid,
+    required String username,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phoneNumber,
+    required String block,
+    required String roomNumber,
+  }) async {
     try {
-      if (docId != null) {
-        await _firestore.collection(collectionPath).doc(docId).set(data);
-      } else {
-        await _firestore.collection(collectionPath).add(data);
-      }
+      await _firestore.collection('students').doc(uid).set({
+        'uid': uid,
+        'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'block': block,
+        'roomNumber': roomNumber,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+        'roleId': 2, // Assuming 2 is for student role
+      });
     } catch (e) {
-      debugPrint('FirestoreService add error: $e');
-      rethrow;
+      throw Exception('Failed to save student data: $e');
     }
   }
 
-  Future<DocumentSnapshot?> getDocument(String collectionPath, String docId) async {
+  Future<void> saveStaffData({
+    required String uid,
+    required String username,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phoneNumber,
+    required String jobRole,
+  }) async {
     try {
-      return await _firestore.collection(collectionPath).doc(docId).get();
+      await _firestore.collection('staff').doc(uid).set({
+        'uid': uid,
+        'username': username,
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'jobRole': jobRole,
+        // --- Add Role ID ---
+        // It's crucial to assign a role ID to staff members.
+        // Assuming 3 is the ID for 'Staff' role. Adjust if yours is different.
+        'roleId': 3, // <-- Add this line
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'isActive': true,
+      });
     } catch (e) {
-      debugPrint('FirestoreService get error: $e');
-      return null;
+      // Improve error message
+      throw Exception('Failed to save staff data to Firestore: $e');
     }
   }
 
-  Future<void> deleteDocument(String collectionPath, String docId) async {
+  // Get staff by UID
+  Future<DocumentSnapshot> getStaffByUid(String uid) async {
     try {
-      await _firestore.collection(collectionPath).doc(docId).delete();
+      return await _firestore.collection('staff').doc(uid).get();
     } catch (e) {
-      debugPrint('FirestoreService delete error: $e');
+      throw Exception('Failed to fetch staff data: $e');
     }
   }
 
-  Stream<QuerySnapshot> streamCollection(String collectionPath) {
-    return _firestore.collection(collectionPath).snapshots();
+  // Get all staff members
+  Stream<QuerySnapshot> getAllStaff() {
+    try {
+      return _firestore.collection('staff').snapshots();
+    } catch (e) {
+      throw Exception('Failed to fetch staff list: $e');
+    }
   }
 }
-

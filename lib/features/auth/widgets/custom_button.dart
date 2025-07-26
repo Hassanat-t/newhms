@@ -10,35 +10,50 @@ class CustomButton extends StatelessWidget {
     this.buttonTextColor,
     required this.press,
     this.size,
+    this.isLoading = false,
+    this.backgroundColor,
   });
+
   final String? buttonText;
   final Color? buttonTextColor;
   final Function()? press;
-
   final double? size;
+  final bool isLoading;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        if (press != null) {
-          await Future.value(press!());
-        }
-      },
+      onTap: isLoading ? null : press, // Disable tap when loading
       child: Container(
         width: double.infinity,
         height: 50,
         decoration: BoxDecoration(
-          color: const Color(0xFF2E8B57),
+          color: isLoading
+              ? (backgroundColor ?? const Color(0xFF2E8B57)).withOpacity(0.5) // Dim color when loading
+              : (backgroundColor ?? const Color(0xFF2E8B57)),
           borderRadius: BorderRadius.circular(14.r),
         ),
         child: Center(
-          child: Text(
-            buttonText ?? " ",
-            style: AppTextTheme.kLabelStyle.copyWith(
-                color: buttonTextColor ?? AppColors.kLight,
-                fontSize: size ?? 16),
-          ),
+          child: isLoading
+              ? SizedBox(
+                  height: 20.h,
+                  width: 20.w,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      buttonTextColor ?? AppColors.kLight,
+                    ),
+                    strokeWidth: 2.0,
+                  ),
+                )
+              : Text(
+                  buttonText ?? " ",
+                  style: AppTextTheme.kLabelStyle.copyWith(
+                    color: buttonTextColor ?? AppColors.kLight,
+                    fontSize: size ?? 16.sp, // Ensure fontSize is responsive
+                    fontWeight: FontWeight.bold, // Make text bold
+                  ),
+                ),
         ),
       ),
     );

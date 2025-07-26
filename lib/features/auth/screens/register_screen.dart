@@ -1,12 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:newhms/common/custom_text.dart';
 import 'package:newhms/common/spacing.dart';
-import 'package:newhms/features/auth/screens/login_screen.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
-import 'package:newhms/features/home/home_screen.dart';
+import 'package:newhms/features/auth/widgets/custom_text_field.dart';
+import 'package:newhms/services/student_service.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 
@@ -20,92 +18,108 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final TextEditingController userName = TextEditingController();
-  final TextEditingController email = TextEditingController();
-  final TextEditingController password = TextEditingController();
-  final TextEditingController firstName = TextEditingController();
-  final TextEditingController lastName = TextEditingController();
-  final TextEditingController phoneNumber = TextEditingController();
+  final TextEditingController _userNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
 
-  String? selectedBlock;
-  String? selectedRoom;
+  final StudentService _studentService = StudentService();
 
-  final List<String> blockOptions = ['A', 'B'];
-  final List<String> roomOptionsA = ['101', '102', '103'];
-  final List<String> roomOptionsB = ['201', '202', '203'];
+  String? _validationMessage;
+  String? _selectedBlock;
+  String? _selectedRoom;
+
+  final List<String> _blockOptions = ['A', 'B'];
+  final List<String> _roomOptionsA = ['101', '102', '103'];
+  final List<String> _roomOptionsB = ['201', '202', '203'];
+
+  bool _isLoading = false;
 
   final emailRegex =
       RegExp(r'^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)*(\.[a-z]{2,})$');
 
-  bool _isLoading = false;
-
   @override
   void dispose() {
-    userName.dispose();
-    email.dispose();
-    firstName.dispose();
-    lastName.dispose();
-    phoneNumber.dispose();
-    password.dispose();
+    _userNameController.dispose();
+    _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneNumberController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> registerUser() async {
+  Future<void> _registerStudent() async {
     if (!_formKey.currentState!.validate()) return;
-    if (selectedBlock == null || selectedRoom == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a block and room number')),
-      );
+
+    if (_selectedBlock == null || _selectedRoom == null) {
+      setState(() {
+        _validationMessage = 'Please select both block and room.';
+      });
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+      _validationMessage = null;
+    });
+
     try {
-      setState(() => _isLoading = true);
-
-      // Register user with FirebaseAuth
-      final authResult =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text.trim(),
+      await _studentService.registerStudent(
+        username: _userNameController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        phoneNumber: _phoneNumberController.text.trim(),
+        block: _selectedBlock!,
+        roomNumber: _selectedRoom!,
       );
 
-      // Save extra user data in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(authResult.user!.uid)
-          .set({
-        'uid': authResult.user!.uid,
-        'userName': userName.text.trim(),
-        'firstName': firstName.text.trim(),
-        'lastName': lastName.text.trim(),
-        'email': email.text.trim(),
-        'phoneNumber': phoneNumber.text.trim(),
-        'block': selectedBlock,
-        'roomNumber': selectedRoom,
-        'role': 'student', // default role
-        'createdAt': Timestamp.now(),
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful')),
-      );
+        // Clear form
+        _formKey.currentState?.reset();
+        _clearControllers();
+        setState(() {
+          _selectedBlock = null;
+          _selectedRoom = null;
+        });
 
-      // Navigate to login screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}')),
-      );
+        // Optionally navigate back to login
+        // Navigator.pop(context);
+      }
     } catch (e) {
-      debugPrint('Registration error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An unexpected error occurred')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception:', '').trim()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  void _clearControllers() {
+    _userNameController.clear();
+    _emailController.clear();
+    _passwordController.clear();
+    _firstNameController.clear();
+    _lastNameController.clear();
+    _phoneNumberController.clear();
   }
 
   @override
@@ -144,9 +158,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 heightSpacer(25),
                 Text('Username', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: userName,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Username is required' : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Username is required';
+                    }
+                    if (value.length < 3) {
+                      return 'Username must be at least 3 characters';
+                    }
+                    return null;
+                  },
+                  controller: _userNameController,
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
                     borderRadius: BorderRadius.circular(14),
@@ -155,9 +176,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 heightSpacer(15),
                 Text('First Name', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: firstName,
-                  validator: (value) =>
-                      value!.isEmpty ? 'First Name is required' : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'First Name is required';
+                    }
+                    return null;
+                  },
+                  controller: _firstNameController,
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
                     borderRadius: BorderRadius.circular(14),
@@ -166,9 +191,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 heightSpacer(15),
                 Text('Last Name', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: lastName,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Last Name is required' : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Last Name is required';
+                    }
+                    return null;
+                  },
+                  controller: _lastNameController,
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
                     borderRadius: BorderRadius.circular(14),
@@ -177,10 +206,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 heightSpacer(15),
                 Text('Email', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: email,
+                  controller: _emailController,
+                  inputKeyBoardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value!.isEmpty) return 'Email is required';
-                    if (!emailRegex.hasMatch(value)) {
+                    if (value == null || value.isEmpty) {
+                      return 'Email is required';
+                    } else if (!emailRegex.hasMatch(value)) {
                       return 'Invalid email address';
                     }
                     return null;
@@ -193,29 +224,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 heightSpacer(15),
                 Text('Password', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: password,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Password is required' : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
+                  controller: _passwordController,
+                  obscureText: true,
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  obscureText: true,
                 ),
                 heightSpacer(15),
                 Text('Phone Number', style: AppTextTheme.kLabelStyle),
                 CustomTextField(
-                  controller: phoneNumber,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Phone Number is required' : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Phone Number is required';
+                    }
+                    // Simple phone validation
+                    final phoneRegex = RegExp(r'^[0-9]{10,15}$');
+                    if (!phoneRegex
+                        .hasMatch(value.replaceAll(RegExp(r'[^0-9]'), ''))) {
+                      return 'Enter valid phone number';
+                    }
+                    return null;
+                  },
+                  controller: _phoneNumberController,
+                  inputKeyBoardType: TextInputType.phone,
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Color(0xFFD1D8FF)),
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 heightSpacer(15),
-
-                /// Block and Room Dropdown
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -232,19 +279,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           widthSpacer(20),
-                          Text('Block No.', style: TextStyle(fontSize: 17.sp)),
+                          Text(
+                            'Block No.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: const Color(0xFF333333),
+                              fontSize: 17.sp,
+                            ),
+                          ),
                           SizedBox(width: 8.w),
                           DropdownButton<String>(
-                            value: selectedBlock,
+                            value: _selectedBlock,
                             hint: const Text('Select'),
-                            onChanged: (val) {
+                            onChanged: (String? newValue) {
                               setState(() {
-                                selectedBlock = val;
-                                selectedRoom = null;
+                                _selectedBlock = newValue;
+                                _selectedRoom = null;
                               });
                             },
-                            items: blockOptions.map((block) {
-                              return DropdownMenuItem(
+                            items: _blockOptions.map((String block) {
+                              return DropdownMenuItem<String>(
                                 value: block,
                                 child: Text(block),
                               );
@@ -268,21 +322,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Room No.', style: TextStyle(fontSize: 17.sp)),
+                            Text(
+                              'Room No.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: const Color(0xFF333333),
+                                fontSize: 17.sp,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             DropdownButton<String>(
-                              value: selectedRoom,
+                              value: _selectedRoom,
                               hint: const Text('Select'),
-                              onChanged: (val) {
-                                setState(() {
-                                  selectedRoom = val;
-                                });
-                              },
-                              items: (selectedBlock == 'A'
-                                      ? roomOptionsA
-                                      : roomOptionsB)
-                                  .map((room) {
-                                return DropdownMenuItem(
+                              onChanged: _selectedBlock == null
+                                  ? null
+                                  : (String? newValue) {
+                                      setState(() {
+                                        _selectedRoom = newValue;
+                                      });
+                                    },
+                              items: (_selectedBlock == 'A'
+                                      ? _roomOptionsA
+                                      : _selectedBlock == 'B'
+                                          ? _roomOptionsB
+                                          : [])
+                                  .map<DropdownMenuItem<String>>((room) {
+                                return DropdownMenuItem<String>(
                                   value: room,
                                   child: Text(room),
                                 );
@@ -294,12 +359,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-
+                if (_validationMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _validationMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                 heightSpacer(40),
                 CustomButton(
-                  buttonText: _isLoading ? "Registering..." : "Register",
-                  press: _isLoading ? null : () => const HomeScreen(),
+                  buttonText: "Register",
+                  isLoading: _isLoading,
+                  press: _registerStudent,
                 ),
+                heightSpacer(20),
               ],
             ),
           ),
