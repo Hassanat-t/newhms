@@ -1,10 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:newhms/common/app_bar.dart';
 import 'package:newhms/common/constants.dart';
 import 'package:newhms/common/spacing.dart';
-import 'package:newhms/services/firebase_services.dart';
 
 class IssueScreen extends StatefulWidget {
   const IssueScreen({super.key});
@@ -14,42 +12,21 @@ class IssueScreen extends StatefulWidget {
 }
 
 class _IssueScreenState extends State<IssueScreen> {
-  final FirebaseServices _firebaseServices = FirebaseServices();
+  // No need for IssueModel? issueModel; anymore
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppBar(context, 'Student Issues'),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firebaseServices.getOpenIssuesTest(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Text('Error: ${snapshot.error}'),
-            );
-          } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text("No Issues found"),
-            );
-          } else {
-            final issues = snapshot.data!.docs;
-            return ListView.builder(
-              itemCount: issues.length,
-              itemBuilder: (context, index) {
-                final issueDoc = issues[index];
-                final issueData = issueDoc.data() as Map<String, dynamic>;
-                return Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: IssueCard(
-                    issueDoc: issueDoc,
-                    issueData: issueData,
-                  ),
-                );
-              },
-            );
-          }
+      body: ListView.builder(
+        itemCount: 2, // Show two dummy cards
+        itemBuilder: (context, index) {
+          // Remove 'const' here because IssueCard's build method uses non-const values
+          return Padding(
+            padding: const EdgeInsets.all(10.0),
+            // Remove 'const' from IssueCard() call
+            child: IssueCard(),
+          );
         },
       ),
     );
@@ -57,57 +34,18 @@ class _IssueScreenState extends State<IssueScreen> {
 }
 
 class IssueCard extends StatelessWidget {
-  final QueryDocumentSnapshot issueDoc;
-  final Map<String, dynamic> issueData;
-
-  const IssueCard({
-    super.key,
-    required this.issueDoc,
-    required this.issueData,
-  });
-
-  Future<void> _resolveIssue(BuildContext context) async {
-    try {
-      final firebaseServices = FirebaseServices();
-      await firebaseServices.updateIssueStatus(issueDoc.id, 'resolved');
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Issue resolved successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to resolve issue: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  // Remove the 'required this.issue' from the constructor
+  const IssueCard({super.key}); // Constructor takes no arguments
 
   @override
   Widget build(BuildContext context) {
-    // Extract data directly from the document (test mode - all data embedded)
-    final firstName = issueData['studentFirstName'] ?? 'Unknown';
-    final lastName = issueData['studentLastName'] ?? 'Student';
-    final email = issueData['studentEmail'] ?? 'No email';
-    final phone = issueData['studentPhone'] ?? 'No phone';
-    final roomNumber = issueData['roomNumber'] ?? 'Unknown Room';
-    final issueText = issueData['issue'] ?? '';
-    final comment = issueData['studentComment'] ?? '';
-
     return Container(
       width: double.maxFinite,
       decoration: const ShapeDecoration(
         shape: RoundedRectangleBorder(),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure full width
         children: [
           heightSpacer(20),
           Container(
@@ -128,18 +66,20 @@ class IssueCard extends StatelessWidget {
               ),
             ),
             child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start, // Align items to top
               children: [
                 Column(
                   children: [
                     heightSpacer(20),
                     Image.asset(
-                      AppConstants.person,
+                      AppConstants.person, // Ensure this asset exists
                       height: 70.h,
                       width: 70.w,
                     ),
                     heightSpacer(10),
                     Text(
-                      '$firstName $lastName',
+                      'Anidu Hassanat', // Static name
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: const Color(0xFF333333),
@@ -151,159 +91,197 @@ class IssueCard extends StatelessWidget {
                   ],
                 ),
                 widthSpacer(20),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    heightSpacer(10.0),
-                    Text(
-                      'Username: $firstName',
-                      style: TextStyle(
-                        color: const Color(0xFF333333),
-                        fontSize: 14.sp,
+                // ****** FIX 1: Remove 'const' from Expanded and its child Column ******
+                // Use Expanded to prevent overflow and allow text wrapping
+                const Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 10.0),
+                      Text(
+                        'Username: hassy01', // Static username
+                        style: TextStyle(
+                          color: Color(0xFF333333),
+                          // fontSize: 14.sp, // Consider if ScreenUtil is needed for static text
+                        ),
                       ),
-                    ),
-                    heightSpacer(8.0),
-                    Text('Room Number: $roomNumber'),
-                    heightSpacer(8.0),
-                    SizedBox(
-                      width: 160.w,
-                      child: Text(
-                        'Email Id: $email',
-                        overflow: TextOverflow.ellipsis,
+                      SizedBox(height: 8.0),
+                      Text('Room Number: A101'), // Static room number
+                      SizedBox(height: 8.0),
+                      // SizedBox with fixed width might cause issues on different screens
+                      // Consider removing width or using FittedBox/Text overflow
+                      SizedBox(
+                        // width: 160.w, // Removed fixed width for better adaptability
+                        child: Text(
+                          'Email Id: hassy@gmail.com', // Static email
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    heightSpacer(8.0),
-                    Text('Phone No.: $phone'),
-                  ],
+                      SizedBox(height: 8.0),
+                      Text('Phone No.: 123-456-7890'), // Static phone
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
           Container(
             width: double.maxFinite,
-            height: 160.h,
+            // Removed fixed height to allow content to dictate size
+            // height: 160.h,
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Container(
-                    width: double.maxFinite,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Issue :',
-                                  textAlign: TextAlign.center,
+                // ****** FIX 2: Remove 'const' from Container's child Column ******
+                Container(
+                  width: double.maxFinite,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    // <-- Removed 'const' here
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- Issue Description ---
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ****** FIX 4: Remove unnecessary 'const' ******
+                              Text(
+                                // <-- Removed 'const'
+                                'Issue :',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  // Style is not constant due to potential sp
+                                  color: Color(0xFF333333),
+                                  fontSize:
+                                      16, // Use int if not using ScreenUtil here
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(
+                                  width: 12), // Space between label and text
+                              // Use Expanded for the description text
+                              Expanded(
+                                // ****** FIX 3: Ensure Expanded is not forced const ******
+                                // It's generally okay, but ensure parent Row isn't const
+                                child: Text(
+                                  'The light in my room is broken.', // Static issue description
                                   style: TextStyle(
+                                    // Style is not constant due to sp
                                     color: Color(0xFF333333),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
+                                    // fontSize: 16.sp,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    issueText,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: const Color(0xFF333333),
-                                      fontSize: 16.sp,
-                                      fontFamily: 'Inter',
-                                    ),
-                                  ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12), // Vertical space
+                          // --- Student Comment ---
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ****** FIX 4: Remove unnecessary 'const' ******
+                              Text(
+                                // <-- Removed 'const'
+                                'Student comment :',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  // Style is not constant due to sp
+                                  color: Color(0xFF333333),
+                                  fontSize:
+                                      16, // Use int if not using ScreenUtil here
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
-                            heightSpacer(12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Student comment :',
-                                  textAlign: TextAlign.center,
+                              ),
+                              SizedBox(
+                                  width: 12), // Space between label and text
+                              // Use Expanded for the comment text
+                              Expanded(
+                                child: Text(
+                                  'It stopped working two days ago.', // Static comment
                                   style: TextStyle(
-                                    color: const Color(0xFF333333),
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w700,
+                                    // Style is not constant due to sp
+                                    color: Color(0xFF333333),
+                                    // fontSize: 16.sp,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    '“$comment”',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: const Color(0xFF333333),
-                                      fontSize: 16.sp,
-                                      fontFamily: 'Inter',
-                                    ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 20), // Vertical space before button
+                          // --- Resolve Button ---
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              InkWell(
+                                onTap: () {
+                                  // Placeholder action - show a SnackBar
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Issue marked as Resolved (Simulated)')),
+                                    );
+                                  }
+                                  // Removed apiCall.closeAnIssue(...)
+                                },
+                                child: Container(
+                                  // width: 120.w, // Consider if fixed width is necessary
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
+                                  decoration: ShapeDecoration(
+                                    color: Colors.blue,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8)),
+                                    shadows: const [
+                                      BoxShadow(
+                                        color: Color(0x3F000000),
+                                        blurRadius: 8,
+                                        offset: Offset(1, 3),
+                                        spreadRadius: 0,
+                                      )
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                            heightSpacer(20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                InkWell(
-                                  onTap: () => _resolveIssue(context),
-                                  child: Container(
-                                    width: 120.w,
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: ShapeDecoration(
-                                      color: Colors.blue,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      shadows: const [
-                                        BoxShadow(
-                                          color: Color(0x3F000000),
-                                          blurRadius: 8,
-                                          offset: Offset(1, 3),
-                                          spreadRadius: 0,
-                                        )
-                                      ],
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Resolve',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16.sp,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize
+                                        .min, // Shrink to fit content
+                                    children: [
+                                      // ****** FIX 4: Remove unnecessary 'const' ******
+                                      Text(
+                                        // <-- Removed 'const'
+                                        'Resolve',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          // Style is not constant due to sp
+                                          color: Colors.white,
+                                          fontSize:
+                                              16, // Use int if not using ScreenUtil here
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                            heightSpacer(10),
-                          ],
-                        ),
-                      ],
-                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10), // Space at the bottom
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+                // Accept/Reject buttons are commented out in the original, so left as is
               ],
             ),
           ),

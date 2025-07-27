@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
-
 AppBar buildAppBar(BuildContext context, String? title) {
   return AppBar(
     backgroundColor: AppColors.kGreenColor,
