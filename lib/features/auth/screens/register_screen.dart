@@ -12,6 +12,10 @@ import 'package:newhms/theme/text_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
+import '../../../models/user_model.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -88,6 +92,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               'createdAt': FieldValue.serverTimestamp(),
             });
 
+            UserModel userModel = UserModel(
+              uid: user.uid,
+              username: username.text.trim(),
+              firstName: firstName.text.trim(),
+              lastName: lastName.text.trim(),
+              email: email.text.trim(),
+              role: 'student',
+              isActive: true,
+              block: selectedBlock,
+              room: selectedRoom,
+            );
+
+            Provider.of<UserProvider>(context, listen: false).setUser(userModel);
+
             // Navigate or show success
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("Registration successful!")),
@@ -95,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => HomeScreen(role: 'student')),
+              MaterialPageRoute(builder: (_) => HomeScreen()),
             );
           } catch (firestoreError) {
             // Firestore write failed: delete auth user to rollback
