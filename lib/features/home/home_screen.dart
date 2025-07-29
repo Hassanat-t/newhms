@@ -17,13 +17,33 @@ import 'package:newhms/theme/text_theme.dart';
 import 'package:newhms/widgets/category_card.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String role;
+  const HomeScreen({super.key, required this.role});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
+  // utility function to handle access restrictions
+  // and authorization
+  void _handleRestrictedAccess({
+    required List<String> allowedRoles,
+    required VoidCallback onAccessGranted,
+  }) {
+    if (allowedRoles.contains(widget.role)) {
+      onAccessGranted();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You do not have access to this feature'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
