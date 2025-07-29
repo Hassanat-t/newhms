@@ -13,8 +13,11 @@ import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
+import '../../../models/user_model.dart';
 
 
 //import 'package:provider/provider.dart';
@@ -47,6 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         User? user = userCredential.user;
 
+
         if (user != null) {
           // Get user role from Firestore
           DocumentSnapshot userDoc = await FirebaseFirestore.instance
@@ -57,6 +61,14 @@ class _LoginScreenState extends State<LoginScreen> {
           if (userDoc.exists) {
             String role = userDoc.get('role');
 
+            // Get the data
+            var data = userDoc.data() as Map<String, dynamic>;
+            // set the model
+            UserModel userModel = UserModel.fromMap(data, user.uid);
+
+            // Set Provider
+            Provider.of<UserProvider>(context, listen: false).setUser(userModel);
+
             // Clear the form fields
             email.clear();
             password.clear();
@@ -65,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => HomeScreen(role: role),
+                builder: (context) => HomeScreen(),
               ),
             );
           } else {
