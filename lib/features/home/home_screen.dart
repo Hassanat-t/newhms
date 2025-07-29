@@ -19,6 +19,8 @@ import 'package:newhms/widgets/category_card.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
 
+import 'package:newhms/utils/string_extensions.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -130,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Text(
                               "${user?.firstName ?? ''} ${user?.lastName ?? ''}".trim().isEmpty
                             ? 'User'
-                                : "${user!.firstName} ${user.lastName}",
+                                : "${user!.firstName} ${user.lastName}".toTitleCase(),
                               // maxLines: 1,
                               // overflow: TextOverflow.ellipsis,
                               style: TextStyle(
