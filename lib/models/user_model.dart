@@ -29,7 +29,7 @@ class UserModel {
       lastName: map['lastName'] ?? '',
       username: map['username'] ?? '',
       role: map['role'] ?? '',
-      isActive: map['isActive'] ?? '',
+      isActive: map['isActive'] ?? true,
       block: map['block'],
       room: map['room'],
     );
