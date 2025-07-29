@@ -7,6 +7,8 @@ import 'package:newhms/common/spacing.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:newhms/models/user_model.dart';
 
+import 'package:newhms/utils/string_extensions.dart';
+
 class StaffInfoScreen extends StatefulWidget {
   const StaffInfoScreen({super.key});
 
@@ -104,7 +106,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             ),
                             heightSpacer(20),
                             Text(
-                              staff.role,
+                              staff.role.capitalize(),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF333333),
@@ -122,7 +124,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             children: [
                               heightSpacer(10.0),
                               Text(
-                                'Name: ${staff.firstName} ${staff.lastName}',
+                                'Name: ${staff.firstName} ${staff.lastName}'.toTitleCase(),
                                 style: TextStyle(
                                   color: const Color(0xFF333333),
                                   fontSize: 14.sp,
@@ -137,7 +139,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                                 ),
                               ),
                               heightSpacer(8.0),
-                              Text('Contact: ${staff.email}'),
+                              Text('Contact: ${staff.phoneNumber}'),
                               heightSpacer(8.0),
                            
                             ],
