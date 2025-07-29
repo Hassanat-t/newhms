@@ -8,6 +8,7 @@ class UserModel {
   final bool isActive;
   final String? block;
   final String? room;
+  final String? phoneNumber;
 
   UserModel({
     required this.uid,
@@ -19,6 +20,7 @@ class UserModel {
     required this.isActive,
     this.block,
     this.room,
+    this.phoneNumber,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
@@ -32,6 +34,7 @@ class UserModel {
       isActive: map['isActive'] ?? true,
       block: map['block'],
       room: map['room'],
+      phoneNumber: map['phoneNumber']
     );
   }
 }
