@@ -11,6 +11,12 @@ import 'package:newhms/features/auth/widgets/custom_text_field.dart';
 import 'package:newhms/features/home/home_screen.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+
 //import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -24,6 +30,67 @@ class _LoginScreenState extends State<LoginScreen> {
   static final _formKey = GlobalKey<FormState>();
   TextEditingController email = TextEditingController();
   TextEditingController password = TextEditingController();
+
+  bool _isLoggingIn = false;
+
+  Future<void> loginUser() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoggingIn = true;
+      });
+
+      try {
+        // Sign in with Firebase Auth
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+            email: email.text.trim(), password: password.text.trim());
+
+        User? user = userCredential.user;
+
+        if (user != null) {
+          // Get user role from Firestore
+          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          if (userDoc.exists) {
+            String role = userDoc.get('role');
+
+            // Clear the form fields
+            email.clear();
+            password.clear();
+
+            // Navigate with role
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(role: role),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("User record not found in Firestore")),
+            );
+          }
+        }
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Login failed")),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Something went wrong")),
+        );
+      } finally {
+        setState(() {
+          _isLoggingIn = false;
+        });
+      }
+    }
+  }
+
+
   @override
   void dispose() {
     // TODO: implement dispose
@@ -106,20 +173,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   heightSpacer(30),
                   CustomButton(
-                    buttonText: 'login',
                     buttonTextColor: Colors.white,
                     size: 16,
-                    press: () {
-                      // if (_formKey.currentState!.validate()) {
-                      //   print("validation");
-                      // }
-                      Navigator.push(
-                        context,
-                        CupertinoPageRoute(
-                          builder: (context) => HomeScreen(),
+                      press: _isLoggingIn
+                          ? (){}
+                          :
+                        loginUser
+                      ,
+                      child: _isLoggingIn
+                          ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                      );
-                    },
+                      )
+                          : const Text("Login")
                   ),
                   heightSpacer(10),
                   Row(
