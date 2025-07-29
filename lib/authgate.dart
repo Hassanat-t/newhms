@@ -26,43 +26,36 @@ class AuthGate extends StatelessWidget {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(), // auto updates
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
         if (!snapshot.hasData) {
-          return const LoginScreen(); // User not logged in
+          return const LoginScreen(); // Not logged in
         }
 
-        // Fetch role before returning HomeScreen
-        return FutureBuilder<String?>(
-          future: _getUserRole(snapshot.data!.uid),
-          builder: (context, roleSnapshot) {
-            if (roleSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
+        // Logged in – now load user from Firestore into Provider
+        return FutureBuilder(
+          future: Provider.of<UserProvider>(context, listen: false).loadUser(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
             }
 
-            // return if error
-            if (roleSnapshot.hasError || roleSnapshot.data == null) {
-              return const Scaffold(
-                body: Center(child: Text("Error loading user role.")),
-              );
+            // Still return login if somehow user data wasn't set
+            final userProvider = Provider.of<UserProvider>(context, listen: false);
+            if (userProvider.user == null) {
+              FirebaseAuth.instance.signOut(); // Optional: clean up session
+              return const LoginScreen();
             }
 
-            if (snapshot.hasData) {
-              Provider.of<UserProvider>(context, listen: false).loadUser();
-              return const HomeScreen();
-            }
-
-            return HomeScreen(); // return HomeScreen with role passed
+            // Now fully authenticated and user model is loaded
+            return const HomeScreen();
           },
         );
       },
