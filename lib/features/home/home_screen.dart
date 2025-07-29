@@ -164,12 +164,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       widthSpacer(10),
                       InkWell(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            CupertinoPageRoute(
-                              builder: (context) => const RaiseIssueScreen(),
-                            ),
+                          _handleRestrictedAccess(
+                              allowedRoles: ['student'],
+                              onAccessGranted: () {
+                                Navigator.push(
+                                  context,
+                                  CupertinoPageRoute(
+                                    builder: (context) => const RaiseIssueScreen(),
+                                  ),
+                                );
+                              },
                           );
+
                         },
                         child: Column(
                           children: [
