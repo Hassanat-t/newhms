@@ -7,6 +7,13 @@ import 'package:newhms/features/auth/widgets/custom_text_field.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
+import '../../../models/user_model.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class CreateStaff extends StatefulWidget {
   const CreateStaff({super.key});
 
@@ -25,6 +32,57 @@ class _CreateStaffState extends State<CreateStaff> {
   TextEditingController phoneNumber = TextEditingController();
   TextEditingController jobRole = TextEditingController();
 
+  bool _isLoading = false;
+
+  Future<void> createStaffAccount(BuildContext context) async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+          email: email.text.trim(),
+          password: password.text.trim(),
+        );
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(credential.user!.uid)
+            .set({
+          'username': userName.text.trim(),
+          'firstName': firstName.text.trim(),
+          'lastName': lastName.text.trim(),
+          'jobRole': jobRole.text.trim(),
+          'email': email.text.trim(),
+          'phoneNumber': phoneNumber.text.trim(),
+          'role': 'staff',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Staff account created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase Error: ${e.message ?? "Unknown error"}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     userName.dispose();
@@ -39,6 +97,21 @@ class _CreateStaffState extends State<CreateStaff> {
 
   @override
   Widget build(BuildContext context) {
+
+    final user = Provider.of<UserProvider>(context).user;
+    // Restrict access if not admin
+    // inner layered security
+    if (user == null || user.role != 'admin') {
+      return const Scaffold(
+        body: Center(
+          child: Text(
+            'Access Denied: Admins Only',
+            style: TextStyle(color: Colors.red, fontSize: 18),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: buildAppBar(context, "Create Staff"),
@@ -153,12 +226,20 @@ class _CreateStaffState extends State<CreateStaff> {
                 ),
                 heightSpacer(40),
                 CustomButton(
-                  buttonText: "Create Staff",
-                  press: () async {
-                    if (_formKey.currentState!.validate()) {
-                      print('validated');
-                    }
-                  },
+                  press: _isLoading
+                      ? (){}
+                      :
+                  () => createStaffAccount(context)
+                  ,
+                  child: _isLoading
+                      ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                    ) : const Text("Create Staff")
                 ),
                 heightSpacer(20),
               ],
