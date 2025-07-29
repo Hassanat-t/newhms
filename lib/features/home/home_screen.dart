@@ -16,23 +16,27 @@ import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
 import 'package:newhms/widgets/category_card.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
+
 class HomeScreen extends StatefulWidget {
-  final String role;
-  const HomeScreen({super.key, required this.role});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   // utility function to handle access restrictions
   // and authorization
   void _handleRestrictedAccess({
     required List<String> allowedRoles,
     required VoidCallback onAccessGranted,
   }) {
-    if (allowedRoles.contains(widget.role)) {
+    final user = Provider.of<UserProvider>(context, listen: false).user;
+    final role = user?.role ?? "";
+
+    if (allowedRoles.contains(role)) {
       onAccessGranted();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,6 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context, listen: true);
+    final user = userProvider.user;
+    final role = user?.role ?? "";
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.kGreenColor,
@@ -120,7 +128,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           SizedBox(
                             width: 180.w,
                             child: Text(
-                              'Anidu Hassanat',
+                              "${user?.firstName ?? ''} ${user?.lastName ?? ''}".trim().isEmpty
+                            ? 'User'
+                                : "${user!.firstName} ${user.lastName}",
                               // maxLines: 1,
                               // overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -132,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           heightSpacer(15),
                           Text(
-                            "Room No. : 101",
+                            "Room No. : ${user?.room ?? 'N/A'}",
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: const Color(0xFF333333),
@@ -140,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           Text(
-                            'Block No. :  A',
+                            'Block No. :  ${user?.block ?? 'N/A'}"',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: const Color(0xFF333333),
@@ -205,12 +215,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           category: 'Room\nAvailability',
                           image: AppConstants.roomAvailability,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) =>
-                                    const RoomAvailabilityScreen(),
-                              ),
+                            _handleRestrictedAccess(
+                                allowedRoles: ['admin', 'staff', 'student'],
+                                onAccessGranted: (){
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) =>
+                                      const RoomAvailabilityScreen(),
+                                    ),
+                                  );
+                                }
                             );
                           },
                         ),
@@ -218,11 +233,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           category: 'All\nIssues',
                           image: AppConstants.allIssues,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => const IssueScreen(),
-                              ),
+                            _handleRestrictedAccess(
+                                allowedRoles: ['admin', 'staff'],
+                                onAccessGranted: (){
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => const IssueScreen(),
+                                    ),
+                                  );
+                                }
                             );
                           },
                         ),
@@ -230,12 +250,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           category: 'Staff\nMembers',
                           image: AppConstants.staffMember,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => const StaffInfoScreen(),
-                              ),
+                            _handleRestrictedAccess(
+                                allowedRoles: ['admin', 'staff'],
+                                onAccessGranted: (){
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => const StaffInfoScreen(),
+                                    ),
+                                  );
+                                }
                             );
+
                           },
                         ),
                       ],
@@ -248,37 +274,53 @@ class _HomeScreenState extends State<HomeScreen> {
                           category: 'Create\nStaff',
                           image: AppConstants.createStaff,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => const CreateStaff(),
-                              ),
-                            );
+                            _handleRestrictedAccess(
+                                allowedRoles: ['admin'],
+                                onAccessGranted: (){
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => const CreateStaff(),
+                                    ),
+                                  );
+                                });
                           },
                         ),
                         CategoryCard(
                           category: 'Hostel\nFee',
                           image: AppConstants.hostelFee,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => HostelFee(),
-                              ),
+                            _handleRestrictedAccess(
+                                allowedRoles: ['admin', 'staff', 'student'],
+                                onAccessGranted: () {
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => HostelFee(),
+                                    ),
+                                  );
+                                },
                             );
+
                           },
                         ),
                         CategoryCard(
                           category: 'Change\nRequests',
                           image: AppConstants.roomChange,
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) =>
-                                    const RoomChangeRequestScreen(),
-                              ),
+                            _handleRestrictedAccess(
+                                allowedRoles: ['student'],
+                                onAccessGranted: () {
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) =>
+                                      const RoomChangeRequestScreen(),
+                                    ),
+                                  );
+                                },
                             );
+
                           },
                         ),
                       ],
