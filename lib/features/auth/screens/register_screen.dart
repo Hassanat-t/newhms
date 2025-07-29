@@ -5,9 +5,13 @@ import 'package:newhms/common/constants.dart';
 import 'package:newhms/common/spacing.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
+import 'package:newhms/features/home/home_screen.dart';
 //import 'package:newhms/features/home/home_screen.dart';
 import 'package:newhms/theme/colors.dart';
 import 'package:newhms/theme/text_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -27,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? selectedBlock;
   String? selectedRoom;
+  bool _isLoading = false;
 
   List<String> blockOptions = ['A', 'B'];
   List<String> roomOptionsA = ['101', '102', '103'];
@@ -41,6 +46,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
     lastName.dispose();
     phoneNumber.dispose();
     super.dispose();
+  }
+
+  Future<void> _registerUser() async {
+    if (_formKey.currentState!.validate()) {
+      if (selectedBlock == null || selectedRoom == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Please select both block and room")),
+        );
+        return;
+      }
+
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+          email: email.text.trim(),
+          password: password.text.trim(),
+        );
+
+        User? user = userCredential.user;
+
+        if (user != null) {
+          try {
+            await FirebaseFirestore.instance.collection('users')
+                .doc(user.uid)
+                .set({
+              'uid': user.uid,
+              'username': username.text.trim(),
+              'firstName': firstName.text.trim(),
+              'lastName': lastName.text.trim(),
+              'email': email.text.trim(),
+              'phone': phoneNumber.text.trim(),
+              'role': 'student',
+              'isActive': true,
+              'block': selectedBlock,
+              'room': selectedRoom,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+
+            // Navigate or show success
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Registration successful!")),
+            );
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => HomeScreen(role: 'student')),
+            );
+          } catch (firestoreError) {
+            // Firestore write failed: delete auth user to rollback
+            await user.delete();
+            throw Exception("Failed to store user data. Please try again.");
+          }
+        }
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Registration failed")),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Something went wrong")),
+        );
+      }
+      finally{
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -118,11 +195,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   heightSpacer(15),
                   Text(
-                    "Last Naame",
+                    "Last Name",
                     style: AppTextTheme.kLabelStyle,
                   ),
                   CustomTextField(
-                    controller: email,
+                    controller: lastName,
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                         color: Color(0xffd1d8ff),
@@ -164,7 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: AppTextTheme.kLabelStyle,
                   ),
                   CustomTextField(
-                    controller: email,
+                    controller: password,
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                         color: Color(0xffd1d8ff),
@@ -293,14 +370,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                   heightSpacer(25),
+
                   CustomButton(
-                    buttonText: 'Register',
-                    press: () {
-                      print(selectedBlock);
-                      print(selectedRoom);
-                      if (_formKey.currentState!.validate()) {}
-                     
-                    },
+                    press: _isLoading ? (){} : _registerUser,
+                    child: _isLoading
+                        ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                        : const Text("Register", style: TextStyle(color: Colors.white))
                   ),
                   heightSpacer(10)
                 ],
