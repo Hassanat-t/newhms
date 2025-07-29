@@ -4,6 +4,9 @@ import 'package:newhms/common/app_bar.dart';
 import 'package:newhms/common/constants.dart';
 import 'package:newhms/common/spacing.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:newhms/models/user_model.dart';
+
 class StaffInfoScreen extends StatefulWidget {
   const StaffInfoScreen({super.key});
 
@@ -12,11 +15,46 @@ class StaffInfoScreen extends StatefulWidget {
 }
 
 class _StaffInfoScreenState extends State<StaffInfoScreen> {
+
+  List<UserModel> staffList = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStaff();
+  }
+
+  Future<void> fetchStaff() async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'staff')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      setState(() {
+        staffList = querySnapshot.docs
+            .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+            .toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching staff: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppBar(context, 'All Staff'),
-      body: Padding(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+      : staffList.isNotEmpty ? const Center(child: Text('No staff found.'))
+      :
+      Padding(
         padding: const EdgeInsets.all(10.0),
         child: GridView.builder(
           shrinkWrap: true,
@@ -26,9 +64,12 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
             crossAxisSpacing: 16.0,
             mainAxisSpacing: 16.0,
           ),
-          itemCount: 2,
+          itemCount: staffList.length,
           itemBuilder: (context, index) {
+            final staff = staffList[index];
+
             return Container(
+              key: ValueKey(staff.uid),
               padding: const EdgeInsets.all(16.0),
               decoration: const ShapeDecoration(
                 color: Colors.white,
@@ -63,7 +104,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             ),
                             heightSpacer(20),
                             Text(
-                              'Plumber',
+                              staff.role,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF333333),
@@ -81,7 +122,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                             children: [
                               heightSpacer(10.0),
                               Text(
-                                'Name: Bolaji Fatihu',
+                                'Name: ${staff.firstName} ${staff.lastName}',
                                 style: TextStyle(
                                   color: const Color(0xFF333333),
                                   fontSize: 14.sp,
@@ -96,7 +137,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
                                 ),
                               ),
                               heightSpacer(8.0),
-                              Text('Contact: 0987765'),
+                              Text('Contact: ${staff.email}'),
                               heightSpacer(8.0),
                            
                             ],
