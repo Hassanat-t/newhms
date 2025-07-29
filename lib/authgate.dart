@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:newhms/features/auth/screens/login_screen.dart';
 import 'package:newhms/features/home/home_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -55,7 +57,12 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            return HomeScreen(role: roleSnapshot.data!); // return HomeScreen with role passed
+            if (snapshot.hasData) {
+              Provider.of<UserProvider>(context, listen: false).loadUser();
+              return const HomeScreen();
+            }
+
+            return HomeScreen(); // return HomeScreen with role passed
           },
         );
       },
