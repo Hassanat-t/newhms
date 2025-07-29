@@ -6,6 +6,8 @@ import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
 import 'package:newhms/theme/text_theme.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class RaiseIssueScreen extends StatefulWidget {
   const RaiseIssueScreen({super.key});
 
@@ -22,6 +24,8 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
   TextEditingController studentComment = TextEditingController();
   TextEditingController studentEmailId = TextEditingController();
   TextEditingController studentContactNumber = TextEditingController();
+
+  bool isSubmitting = false;
 
   String? selectedIssue;
   List<String> issues = [
@@ -42,6 +46,44 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
     studentContactNumber.dispose();
     super.dispose();
   }
+
+  // utility logic to help handle and submit issue
+  Future<void> submitIssue() async {
+    setState(() {
+      isSubmitting = true;
+    });
+    try {
+      await FirebaseFirestore.instance.collection('issues').add({
+        'roomNumber': roomNumber.text.trim(),
+        'block': block.text.trim(),
+        'studentEmail': studentEmailId.text.trim(),
+        'contactNumber': studentContactNumber.text.trim(),
+        'issueType': selectedIssue ?? '',
+        'comment': studentComment.text.trim(),
+        'timestamp': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Issue submitted successfully!')),
+      );
+
+      studentComment.clear();
+      setState(() {
+        selectedIssue = null;
+      });
+
+    } catch (e) {
+      print('Error submitting issue: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to submit issue.')),
+      );
+    }finally {
+      setState(() {
+        isSubmitting = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -227,12 +269,17 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                 ),
                 heightSpacer(40),
                 CustomButton(
-                  buttonText: "Submit",
-                  press: () async {
-                    if (_formKey.currentState!.validate()) {
-                      print('validated');
-                    }
-                  },
+                    press: isSubmitting ? (){} : submitIssue,
+                    child: isSubmitting
+                        ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                        : const Text("Submit", style: TextStyle(color: Colors.white))
                 ),
                 heightSpacer(20),
               ],
