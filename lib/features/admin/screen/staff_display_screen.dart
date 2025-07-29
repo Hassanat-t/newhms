@@ -52,7 +52,7 @@ class _StaffInfoScreenState extends State<StaffInfoScreen> {
       appBar: buildAppBar(context, 'All Staff'),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-      : staffList.isNotEmpty ? const Center(child: Text('No staff found.'))
+      : staffList.isEmpty ? const Center(child: Text('No staff found.'))
       :
       Padding(
         padding: const EdgeInsets.all(10.0),
