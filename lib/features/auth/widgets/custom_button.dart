@@ -9,11 +9,13 @@ class CustomButton extends StatelessWidget {
     this.buttonTextColor,
     required this.press,
     this.size,
+    this.child,
   });
   final String? buttonText;
   final Color? buttonTextColor;
   final Function() press;
   final double? size;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +29,7 @@ class CustomButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14.r),
         ),
         child: Center(
-          child: Text(
+          child: child ?? Text(
             buttonText ?? " ",
             style: AppTextTheme.kLabelStyle.copyWith(
                 color: buttonTextColor ?? AppColors.kLight,
