@@ -54,6 +54,7 @@ class _CreateStaffState extends State<CreateStaff> {
           'email': email.text.trim(),
           'phoneNumber': phoneNumber.text.trim(),
           'role': 'staff',
+          'isActive': true,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
