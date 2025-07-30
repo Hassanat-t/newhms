@@ -123,9 +123,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
             child: InkWell(
-              onTap: () async {
-                final provider = Provider.of<UserProvider>(context, listen: false);
-                await provider.logout(context);
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => const LoginScreen(),
+                  ),
+                );
               },
               child: const Icon(
                 Icons.logout,
