@@ -171,6 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   heightSpacer(15),
                   CustomTextField(
                     controller: password,
+                    obscureText: true,
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Color(0xffd1d8ff)),
                       borderRadius: BorderRadius.circular(14),
