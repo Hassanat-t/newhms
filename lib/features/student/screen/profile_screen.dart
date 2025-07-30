@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,6 +12,9 @@ import 'package:newhms/theme/colors.dart';
 import 'package:newhms/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:newhms/models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../../authgate.dart';
 
 class ProfileScreen extends StatefulWidget {
   // Make the constructor parameterless
@@ -123,12 +127,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
             child: InkWell(
-              onTap: () {
-                Navigator.pushReplacement(
+              onTap: () async {
+                await FirebaseAuth.instance.signOut();
+                // Clear the user from provider
+                final userProvider = Provider.of<UserProvider>(context, listen: false);
+                userProvider.clearUser();
+                Navigator.pushAndRemoveUntil(
                   context,
-                  CupertinoPageRoute(
-                    builder: (context) => const LoginScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const AuthGate()),
+                      (route) => false,
                 );
               },
               child: const Icon(
