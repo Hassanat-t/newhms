@@ -317,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           image: AppConstants.roomChange,
                           onTap: () {
                             _handleRestrictedAccess(
-                                allowedRoles: ['student'],
+                                allowedRoles: ['staff', 'admin'],
                                 onAccessGranted: () {
                                   Navigator.push(
                                     context,
