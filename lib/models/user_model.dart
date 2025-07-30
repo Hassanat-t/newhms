@@ -34,7 +34,46 @@ class UserModel {
       isActive: map['isActive'] ?? true,
       block: map['block'],
       room: map['room'],
-      phoneNumber: map['phoneNumber']
+      phoneNumber: map['phone'],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'username': username,
+      'role': role,
+      'isActive': isActive,
+      'block': block,
+      'room': room,
+      'phone': phoneNumber,
+    };
+  }
+
+  UserModel copyWith({
+    String? email,
+    String? firstName,
+    String? lastName,
+    String? username,
+    String? role,
+    bool? isActive,
+    String? block,
+    String? room,
+    String? phoneNumber,
+  }) {
+    return UserModel(
+      uid: uid,
+      email: email ?? this.email,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      username: username ?? this.username,
+      role: role ?? this.role,
+      isActive: isActive ?? this.isActive,
+      block: block ?? this.block,
+      room: room ?? this.room,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
     );
   }
 }
