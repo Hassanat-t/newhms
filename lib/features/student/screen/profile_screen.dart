@@ -8,6 +8,9 @@ import 'package:newhms/features/auth/screens/login_screen.dart';
 import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
 import 'package:newhms/theme/colors.dart';
+import 'package:newhms/providers/user_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:newhms/models/user_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   // Make the constructor parameterless
@@ -18,30 +21,31 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Dummy values for user details
-  final String _dummyRoomNumber = "A101";
-  final String _dummyBlockNumber = "Block A";
-  final String _dummyUsername = "johndoe";
-  final String _dummyEmailId = "johndoe@example.com";
-  final String _dummyPhoneNumber = "123-456-7890";
-  final String _dummyFirstName = "John";
-  final String _dummyLastName = "Doe";
-
   // Controllers for the editable text fields
   late TextEditingController usernameController;
   late TextEditingController phoneNumberController;
   late TextEditingController firstNameController;
   late TextEditingController lastNameController;
 
+  bool _isUpdating = false;
+
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with the dummy values
-    usernameController = TextEditingController(text: _dummyUsername);
-    phoneNumberController = TextEditingController(text: _dummyPhoneNumber);
-    firstNameController = TextEditingController(text: _dummyFirstName);
-    lastNameController = TextEditingController(text: _dummyLastName);
+
+    // Delay to allow context to be ready for Provider
+    Future.delayed(Duration.zero, () {
+      final user = Provider.of<UserProvider>(context, listen: false).user;
+
+      setState(() {
+        usernameController = TextEditingController(text: user?.username ?? '');
+        phoneNumberController = TextEditingController(text: user?.phoneNumber ?? '');
+        firstNameController = TextEditingController(text: user?.firstName ?? '');
+        lastNameController = TextEditingController(text: user?.lastName ?? '');
+      });
+    });
   }
+
 
   @override
   void dispose() {
@@ -53,8 +57,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _handleUpdateProfile(BuildContext context) async {
+    setState(() {
+      _isUpdating = true;
+    });
+    try {
+      final provider = Provider.of<UserProvider>(context, listen: false);
+      final user = provider.user!;
+
+      await provider.updateUserProfile(
+        username: usernameController.text.trim(),
+        phone: phoneNumberController.text.trim(),
+        firstName: firstNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating profile: $e')),
+        );
+      }
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final isStudent = user.role.toLowerCase() == 'student';
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.kGreenColor,
@@ -110,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               heightSpacer(10),
               // Use dummy first and last name for display
               Text(
-                '$_dummyFirstName $_dummyLastName',
+                '${user.firstName} ${user.lastName}',
                 style: const TextStyle(
                   color: Color(0xFF333333),
                   fontSize: 24,
@@ -118,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               heightSpacer(30),
-              // --- Room and Block Info (Read-only using dummy values) ---
+              if (isStudent)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -135,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        'Room No - $_dummyRoomNumber',
+                        'Room No - {user.room}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: const Color(0xFF333333),
@@ -158,7 +201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        'Block No - $_dummyBlockNumber',
+                        'Block No - ${user.block}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: const Color(0xFF333333),
@@ -169,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-              heightSpacer(20),
+              if (isStudent) heightSpacer(20),
               // --- Email Info (Read-only using dummy value) ---
               Row(
                 children: [
@@ -186,7 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        _dummyEmailId,
+                        user.email,
                         style: TextStyle(
                           color: AppColors.kSecondaryColor,
                           fontSize: 17.sp,
@@ -200,13 +243,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // --- Editable Fields (initialized with dummy values) ---
               CustomTextField(
                 controller: usernameController,
-                inputHint: _dummyUsername,
+                inputHint: user.username,
                 prefixIcon: const Icon(Icons.person_2_outlined),
               ),
               heightSpacer(20),
               CustomTextField(
                 controller: phoneNumberController,
-                inputHint: _dummyPhoneNumber,
+                inputHint: user.phoneNumber,
                 prefixIcon: const Icon(Icons.phone_outlined),
               ),
               heightSpacer(20),
@@ -215,14 +258,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: CustomTextField(
                       controller: firstNameController,
-                      inputHint: _dummyFirstName,
+                      inputHint: user.firstName,
                     ),
                   ),
                   widthSpacer(20),
                   Expanded(
                     child: CustomTextField(
                       controller: lastNameController,
-                      inputHint: _dummyLastName,
+                      inputHint: user.lastName,
                     ),
                   ),
                 ],
@@ -230,23 +273,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               heightSpacer(40),
               // --- Save Button ---
               CustomButton(
-                press: () {
-                  // Placeholder action - show a SnackBar with current field values
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Profile save simulated.\n'
-                          'Username: ${usernameController.text}\n'
-                          'First: ${firstNameController.text}, Last: ${lastNameController.text}\n'
-                          'Phone: ${phoneNumberController.text}',
-                        ),
-                      ),
-                    );
-                  }
-                  // TODO: Implement actual profile saving logic (e.g., API call) here
-                },
-                buttonText: 'Save',
+                press:_isUpdating ? (){} : () => _handleUpdateProfile(context),
+                child: _isUpdating
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text('Update Profile')
               )
             ],
           ),
