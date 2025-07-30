@@ -6,6 +6,10 @@ import 'package:newhms/features/auth/widgets/custom_button.dart';
 import 'package:newhms/features/auth/widgets/custom_text_field.dart';
 import 'package:newhms/theme/text_theme.dart';
 
+import 'package:provider/provider.dart';
+import '../../../providers/user_provider.dart';
+import '../../../models/user_model.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RaiseIssueScreen extends StatefulWidget {
@@ -18,12 +22,12 @@ class RaiseIssueScreen extends StatefulWidget {
 class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
   static final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  TextEditingController roomNumber = TextEditingController();
-  TextEditingController block = TextEditingController();
-  TextEditingController issue = TextEditingController();
+  // TextEditingController roomNumber = TextEditingController();
+  // TextEditingController block = TextEditingController();
+  // TextEditingController issue = TextEditingController();
   TextEditingController studentComment = TextEditingController();
   TextEditingController studentEmailId = TextEditingController();
-  TextEditingController studentContactNumber = TextEditingController();
+  // TextEditingController studentContactNumber = TextEditingController();
 
   bool isSubmitting = false;
 
@@ -36,28 +40,36 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
     'Kitchen'
   ];
 
+
   @override
   void dispose() {
-    roomNumber.dispose();
-    block.dispose();
-    issue.dispose();
     studentComment.dispose();
     studentEmailId.dispose();
-    studentContactNumber.dispose();
     super.dispose();
   }
 
   // utility logic to help handle and submit issue
   Future<void> submitIssue() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User data not loaded.')),
+      );
+      return;
+    }
+
     setState(() {
       isSubmitting = true;
     });
     try {
       await FirebaseFirestore.instance.collection('issues').add({
-        'roomNumber': roomNumber.text.trim(),
-        'block': block.text.trim(),
-        'studentEmail': studentEmailId.text.trim(),
-        'contactNumber': studentContactNumber.text.trim(),
+        'uid': user.uid,
+        'roomNumber': user.room ?? '',
+        'block': user.block ?? '',
+        'studentEmail': user.email,
+        'contactNumber': user.phoneNumber ?? '',
         'issueType': selectedIssue ?? '',
         'comment': studentComment.text.trim(),
         'timestamp': Timestamp.now(),
@@ -87,6 +99,7 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.select<UserProvider, UserModel?>((p) => p.user);
     return Scaffold(
       appBar: buildAppBar(context, "Create Issue"),
       body: SingleChildScrollView(
@@ -127,7 +140,7 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Text(
-                      '101',
+                      user?.room ?? 'N/A',
                       style: TextStyle(
                         color: const Color(0xFF333333),
                         fontSize: 17.sp,
@@ -151,7 +164,7 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Text(
-                      'A',
+                      user?.block ?? 'N/A',
                       style: TextStyle(
                         color: const Color(0xFF333333),
                         fontSize: 17.sp,
@@ -188,7 +201,7 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Text(
-                      'taiwo@gmail.com',
+                      user?.email ?? 'N/A',
                       style: TextStyle(
                         color: const Color(0xFF333333),
                         fontSize: 17.sp,
@@ -213,7 +226,7 @@ class _RaiseIssueScreenState extends State<RaiseIssueScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(left: 10.0),
                     child: Text(
-                      '09093883',
+                      user?.phoneNumber ?? 'N/A',
                       style: TextStyle(
                         color: const Color(0xFF333333),
                         fontSize: 17.sp,
