@@ -35,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController password = TextEditingController();
 
   bool _isLoggingIn = false;
+  bool _obscurePassword = true;
 
   Future<void> loginUser() async {
     if (_formKey.currentState!.validate()) {
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Get user role from Firestore
           DocumentSnapshot userDoc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(user.uid)
+              .doc(user.uid.trim())
               .get();
 
           if (userDoc.exists) {
@@ -74,13 +75,9 @@ class _LoginScreenState extends State<LoginScreen> {
             password.clear();
 
             // Navigate with role
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomeScreen(),
-              ),
-            );
+            Navigator.pop(context);
           } else {
+            FirebaseAuth.instance.signOut();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("User record not found in Firestore")),
             );
@@ -171,10 +168,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   heightSpacer(15),
                   CustomTextField(
                     controller: password,
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: Color(0xffd1d8ff)),
                       borderRadius: BorderRadius.circular(14),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                     inputHint: "Enter your password ",
                     validator: (value) {
