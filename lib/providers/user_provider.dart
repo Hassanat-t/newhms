@@ -36,6 +36,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
+import 'package:newhms/features/auth/screens/login_screen.dart';
+import 'package:flutter/cupertino.dart';
 
 class UserProvider with ChangeNotifier {
   UserModel? _user;
@@ -107,7 +109,12 @@ class UserProvider with ChangeNotifier {
     clearUser();
 
     // Optionally: navigate to login screen
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      Navigator.pushReplacement(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
   }
 }
 
