@@ -259,6 +259,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: AppTextTheme.kLabelStyle,
                   ),
                   CustomTextField(
+                    obscureText: true,
                     controller: password,
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
