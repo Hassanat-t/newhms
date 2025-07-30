@@ -37,9 +37,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? selectedRoom;
   bool _isLoading = false;
 
-  List<String> blockOptions = ['A', 'B'];
+  List<String> blockOptions = ['Bowlsant1', 'Bowlsant2'];
   List<String> roomOptionsA = ['101', '102', '103'];
   List<String> roomOptionsB = ['201', '202', '203'];
+
+
+  // Utility method to generate rooms options
+  List<String> _generateRooms(int count, String prefix) {
+    return List.generate(count, (i) => '$prefix${(i + 1).toString().padLeft(2, '0')}');
+  }
+
+  List<String> get roomOptions {
+    if (selectedBlock == 'Bowlsant1') {
+      return _generateRooms(33, 'B1-'); // B1-01 to B1-33
+    } else if (selectedBlock == 'Bowlsant2') {
+      return _generateRooms(30, 'B2-'); // B2-01 to B2-30
+    }
+    return [];
+  }
+
+
   @override
   void dispose() {
     // TODO: implement dispose
@@ -137,6 +154,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +316,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   heightSpacer(15),
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         height: 50.h,
@@ -305,7 +325,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           shape: RoundedRectangleBorder(
                             side: BorderSide(
                               width: 1,
-                              color: Color(0xff2e8b57),
+                              color: const Color(0xff2e8b57),
                             ),
                             borderRadius: BorderRadius.circular(14.r),
                           ),
@@ -315,7 +335,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           children: [
                             widthSpacer(20),
                             Text(
-                              'Block No.',
+                              'Bowlsant -',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: const Color(0xFF333333),
@@ -342,50 +362,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ],
                         ),
                       ),
-                      widthSpacer(20),
-                      Expanded(
-                        child: Container(
-                          height: 50.h,
-                          decoration: ShapeDecoration(
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(
-                                  width: 1, color: Color(0xFF2E8B57)),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Room No.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: const Color(0xFF333333),
-                                  fontSize: 17.sp,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              DropdownButton<String>(
-                                value: selectedRoom,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedRoom = newValue;
-                                  });
-                                },
-                                items: (selectedBlock == 'A'
-                                        ? roomOptionsA
-                                        : roomOptionsB)
-                                    .map((String room) {
-                                  return DropdownMenuItem<String>(
-                                    value: room,
-                                    child: Text(room),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
+                      if (selectedBlock != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            selectedBlock == 'Bowlsant1'
+                                ? 'Each room accommodates 3 people'
+                                : 'Each room accommodates 2 people',
+                            style: TextStyle(fontSize: 14.sp, color: Colors.green[700]),
                           ),
                         ),
-                      )
+                      heightSpacer(10),
+                      Container(
+                        height: 50.h,
+                        decoration: ShapeDecoration(
+                          shape: RoundedRectangleBorder(
+                            side: const BorderSide(width: 1, color: Color(0xFF2E8B57)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Room No.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: const Color(0xFF333333),
+                                fontSize: 17.sp,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            DropdownButton<String>(
+                              value: selectedRoom,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedRoom = newValue;
+                                });
+                              },
+                              items: roomOptions.map((String room) {
+                                return DropdownMenuItem<String>(
+                                  value: room,
+                                  child: Text(room),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                   heightSpacer(25),
