@@ -123,13 +123,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 20.0),
             child: InkWell(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => const LoginScreen(),
-                  ),
-                );
+              onTap: () async {
+                final provider = Provider.of<UserProvider>(context, listen: false);
+                await provider.logout(context);
               },
               child: const Icon(
                 Icons.logout,
@@ -178,7 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        'Room No - {user.room}',
+                        'Room No - ${user.room}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: const Color(0xFF333333),
